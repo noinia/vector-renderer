@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import qualified VectorRenderer.Main as VR
 
 main :: IO ()
-main = someFunc
+main = VR.main
