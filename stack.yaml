@@ -7,6 +7,8 @@ extra-deps:
 - fixed-vector-1.0.0.0
 - vinyl-0.7.0
 - reactive-banana-gi-gtk-0.2.0.0
+- approximate-equality-1.1.0.2
+- type-level-natural-number-2.0
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

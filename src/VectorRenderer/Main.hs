@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLabels #-}
 module VectorRenderer.Main where
@@ -9,6 +10,7 @@ import           Data.GI.Base
 import           Data.Geometry.Point
 import           Data.Geometry.Vector
 import           Data.Geometry.Triangle
+import           Data.Geometry.Transformation
 import qualified Data.Text as T
 import qualified GI.Gdk as Gdk
 import qualified GI.Gtk as Gtk
@@ -19,15 +21,21 @@ import           Reactive.Banana
 import           Reactive.Banana.Frameworks
 import           Reactive.Banana.GI.Gtk
 import           VectorRenderer.Import
-import           VectorRenderer.Project
+-- import           VectorRenderer.Project
 import           VectorRenderer.RenderUtil
 import qualified VectorRenderer.RenderCanvas as Render
 
 
 --------------------------------------------------------------------------------
 
-myCamera :: Camera Rational
-myCamera = Camera (Point3 0 (-100) (-100)) (Vector3 0 0 1)
+-- myCamera :: Camera Rational
+-- myCamera = Camera origin
+--                   (Vector3 1 1 0)
+--                   (Vector3 0 0 1)
+--                   100
+--                   20
+--                   30
+--                   (Vector2 800 600)
 
 type Scene r = [Triangle 3 () r :+ Canvas.Color]
 
@@ -59,14 +67,30 @@ ySide = map (\(t :+ c) -> pmap toY t :+ c)
     toY (Point3 x y z) = Point3 x z y
 
 
-myScene :: Scene Rational
-myScene = [ triangle (Point3 100 100 100)
-                     (Point3 20   10 100)
-                     (Point3 50   0 100) :+ Canvas.red 255
-          , triangle (Point3 70 350 110)
-                     (Point3 300 200 150)
-                     (Point3 0   30  105) :+ Canvas.blue 255
-          ] ++ cube
+myScene = [myT :+ Canvas.red 255]
+        ++ axes
+        ++ cube
+
+axes = [ triangle origin
+                  (Point3 500 0 (-10))
+                  (Point3 500 0 0) :+ Canvas.red 255
+       , triangle origin
+                  (Point3 0 500 (-10))
+                  (Point3 0 500 0) :+ Canvas.green 255
+       , triangle origin
+                  (Point3 0 (-10) 500)
+                  (Point3 0 0     500) :+ Canvas.blue 255
+       ]
+
+-- myScene :: Scene Double
+-- myScene = [ triangle (Point3 100 100 100)
+--                      (Point3 20   10 100)
+--                      (Point3 50   0 100) :+ Canvas.red 255
+--           , triangle (Point3 70 350 110)
+--                      (Point3 300 200 150)
+--                      (Point3 0   30  105) :+ Canvas.blue 255
+--           , myT :+ Canvas.rgb 200 0 200
+--           ] ++ cube
 
 cube = concat [ mkBottom 0 (400,0) (500,100) (Canvas.red 200)
               , mkBottom 100 (400,0) (500,100) (Canvas.blue 255) -- top
@@ -159,9 +183,9 @@ networkDescription = do
 
     cameraB <- accumB myCamera (shiftCamera <$> arrowKeyE)
     let sceneB  = pure myScene
-        canvasB = drawScene <$> cameraB <*> sceneB
+        canvasB = drawScene drawingAreaW drawingAreaH <$> cameraB <*> sceneB
 
-    draw drawingArea (mirrored drawingAreaH <$> canvasB)
+    draw drawingArea canvasB
 
     reactimate $ print <$> mousePressedE
 
@@ -172,21 +196,30 @@ shiftCamera     :: Num r => ArrowKey -> Camera r -> Camera r
 shiftCamera k c = c&cameraPosition %~ (.+^ 2 *^ toDirection k)
 
 
-drawScene       :: Camera Rational
-                -> Scene Rational
-                -> Canvas ()
-drawScene c s = do
-        Canvas.background $ Canvas.gray 255
-        Canvas.stroke $ Canvas.gray 0
-        mapM_ (Render.colored Render.triangle . project c) s
+drawScene         :: (Fractional r, Real r)
+                  => Double -> Double
+                  -> Camera r
+                  -> Scene r
+                  -> Canvas ()
+drawScene w h c s = do
+          Canvas.background $ Canvas.gray 255
+          Canvas.scale     $ V2 1 (-1)
+          Canvas.translate $ V2 (w/2) (-1*h/2)
+          Canvas.stroke $ Canvas.gray 0
+          -- mapM_ (Render.colored Render.triangle . project c) s
+          mapM_ (Render.colored Render.triangle) $ renderScene c s
 
 
--- -- | Mirror the canvas s.t. the bottom-left corner is the origin
--- mirrored       :: Double -> (a -> Canvas ()) -> a -> Canvas ()
--- mirrored h d x = do Canvas.scale     $ V2 1 (-1)
---                     Canvas.translate $ V2 0 (-1*h)
---                     d x
+render (Triangle p q r) = Triangle (p&core %~ projectPoint)
+                                   (q&core %~ projectPoint)
+                                   (r&core %~ projectPoint)
 
+
+renderScene     :: Fractional r => Camera r -> Scene r
+                -> [Triangle 2 () r :+ Canvas.Color]
+renderScene c s = over core (render . transformBy t) <$> s
+  where
+    !t = worldToView c
 
 -- | Mirror the canvas s.t. the bottom-left corner is the origin
 mirrored     :: Double -> Canvas () -> Canvas ()
@@ -194,6 +227,12 @@ mirrored h d = do Canvas.scale     $ V2 1 (-1)
                   Canvas.translate $ V2 0 (-1*h)
                   d
 
+centerScaleViewport         :: Real r
+                            => Camera r -> Double -> Double -> Canvas () -> Canvas ()
+centerScaleViewport c w h d = do let Vector2 cw ch = realToFrac <$> c^.screenDimensions
+                                 Canvas.scale     $ V2 (w/cw) (h/ch)
+                                 Canvas.translate $ V2 (w/2)  (h/2)
+                                 d
 
 
 data ArrowKey = UpKey | DownKey | LeftKey | RightKey deriving (Show,Read,Eq,Bounded,Enum)

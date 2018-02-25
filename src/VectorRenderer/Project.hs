@@ -45,3 +45,7 @@ project   :: ( Projectable c
              , NumType c ~ r, NumType (ProjectsTo c) ~ r
              ) =>  Camera r -> c :+ e -> ProjectsTo c :+ e
 project c = over core (projectWith c)
+
+
+
+-- compute a transformation that moves the camera to the origin, and then rotates s.t. the orientation of the camera becomes (0 0 1)
