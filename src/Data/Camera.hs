@@ -27,10 +27,14 @@ myT = Triangle (ext $ Point3 1  1  10)
                (ext $ Point3 20 30 10)
 
 
+-- | Full transformation that renders the figure
+cameraTransform c =  toViewPort c
+                 |.| perspectiveProjection c
+                 |.| worldToView c
+
+-- | Translates world coordinates into view coordinates
 worldToView   :: Fractional r => Camera r -> Transformation 3 r
-worldToView c =  toViewPort c
-             |.| perspectiveProjection c
-             |.| rotateCoordSystem c
+worldToView c =  rotateCoordSystem c
              |.| (translation $ (-1) *^ c^.cameraPosition.vector)
 
 -- | Transformation into viewport coordinates
@@ -47,10 +51,10 @@ toViewPort c = Transformation . Matrix
 -- | constructs a perspective projection
 perspectiveProjection   :: Fractional r => Camera r -> Transformation 3 r
 perspectiveProjection c = Transformation . Matrix $
-    Vector4 (Vector4 (n/rx) 0       0              0)
-            (Vector4 0       (n/ry) 0              0)
-            (Vector4 0       0      (-(n+f)/(n-f)) (-2*n*f/(n-f)))
-            (Vector4 0       0      (-1)           0)
+    Vector4 (Vector4 (-n/rx) 0       0              0)
+            (Vector4 0       (-n/ry) 0              0)
+            (Vector4 0       0       (-(n+f)/(n-f)) (-2*n*f/(n-f)))
+            (Vector4 0       0       1              0)
   where
     n = c^.nearDist
     f = c^.farDist
@@ -96,18 +100,25 @@ testProjection c = map (transformBy t) [Vector3 30 30 (-10), Vector3 (30*50/10) 
 -- transformBy' (Transformation m) (Vector3 x y z) = m `mult` (Vector4 x y z (-z))
 
 
+flipAxes :: Num r => Transformation 3 r
+flipAxes = Transformation . Matrix
+             $ Vector4 (Vector4 1 0 0 0)
+                       (Vector4 0 0 1 0)
+                       (Vector4 0 1 0 0)
+                       (Vector4 0 0 0 1)
+
 
 
 --------------------------------------------------------------------------------
 
 myCamera :: Camera Double
-myCamera = Camera (Point3 0 0 50)
+myCamera = Camera (Point3 50 0 50)
                   (signorm $ Vector3 0 0 (-1))
                   (Vector3 0 1 0)
                   10
-                  10
-                  500 -- we can see up to the origin
-                  (Vector2 800 600)
+                  15
+                  55
+                  (Vector2 80 60)
 
 
 myCamera1 :: Camera Double

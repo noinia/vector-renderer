@@ -67,9 +67,16 @@ ySide = map (\(t :+ c) -> pmap toY t :+ c)
     toY (Point3 x y z) = Point3 x z y
 
 
-myScene = [myT :+ Canvas.red 255]
+myScene = [myT :+ Canvas.red 255
+          , triangle origin
+                     (Point3 0 40 (-10))
+                     (Point3 0 0  (-10)) :+ Canvas.blue 255
+          , triangle (Point3 0 0 (-50))
+                     (Point3 0 40 (-10))
+                     (Point3 0 0  (-10)) :+ Canvas.green 255
+          ]
         ++ axes
-        ++ cube
+        -- ++ cube
 
 axes = [ triangle origin
                   (Point3 500 0 (-10))
@@ -78,8 +85,8 @@ axes = [ triangle origin
                   (Point3 0 500 (-10))
                   (Point3 0 500 0) :+ Canvas.green 255
        , triangle origin
-                  (Point3 0 (-10) 500)
-                  (Point3 0 0     500) :+ Canvas.blue 255
+                  (Point3 0 (-10) 35)
+                  (Point3 0 0     35) :+ Canvas.blue 255
        ]
 
 -- myScene :: Scene Double
@@ -205,6 +212,8 @@ drawScene w h c s = do
           Canvas.background $ Canvas.gray 255
           Canvas.scale     $ V2 1 (-1)
           Canvas.translate $ V2 (w/2) (-1*h/2)
+          let Vector2 cw ch = realToFrac <$> c^.screenDimensions
+          Canvas.scale     $ V2 (w/cw) (h/ch)
           Canvas.stroke $ Canvas.gray 0
           -- mapM_ (Render.colored Render.triangle . project c) s
           mapM_ (Render.colored Render.triangle) $ renderScene c s
@@ -219,7 +228,8 @@ renderScene     :: Fractional r => Camera r -> Scene r
                 -> [Triangle 2 () r :+ Canvas.Color]
 renderScene c s = over core (render . transformBy t) <$> s
   where
-    !t = worldToView c
+    !t = cameraTransform c
+
 
 -- | Mirror the canvas s.t. the bottom-left corner is the origin
 mirrored     :: Double -> Canvas () -> Canvas ()
@@ -250,3 +260,8 @@ toDirection UpKey    = Vector3 0    1    0
 toDirection DownKey  = Vector3 0    (-1) 0
 toDirection LeftKey  = Vector3 (-1) 0    0
 toDirection RightKey = Vector3 1    0    0
+
+
+-- toDir       :: Num r => Camera r -> T.Text -> Maybe (Vector 3 r)
+-- toDir c "w" = Just $ c^.cameraNormal
+-- toDir c "a" = Just $ c^.
