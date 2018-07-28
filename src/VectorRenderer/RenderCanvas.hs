@@ -6,6 +6,7 @@ import           Data.Colour.SRGB(RGB(..), toSRGB24)
 import           Data.Colour.Names(readColourName)
 import           Data.Ext
 import           Data.Geometry
+import           Data.Geometry.Vector.VectorFamilyPeano
 import           Data.Geometry.Triangle
 import           Data.Geometry.Box
 import           Data.Geometry.Ipe.Attributes
@@ -46,7 +47,7 @@ triangle t' = let (Triangle p q r) = realToFrac <$> t' in
     Canvas.triangle (p^.core.toV2') (q^.core.toV2') (r^.core.toV2')
 
 toV2' :: Getter (Point 2 r) (V2 r)
-toV2' = vector.to toV2
+toV2' = vector.unV.unVF
 
 -- | draw a point as a small disk
 point   :: Real r => Point 2 r -> Canvas ()
@@ -103,10 +104,12 @@ applyAttributes' (a :& ats) = applyAttribute a >> applyAttributes' ats
 
 
 newtype CanvasM = CanvasM { unCanvasM :: Canvas () }
+
+instance Semigroup CanvasM where
+  (CanvasM a) <> (CanvasM b) = CanvasM $ a >> b
 instance Monoid CanvasM where
   mempty = CanvasM $ pure ()
-  (CanvasM a) `mappend` (CanvasM b) = CanvasM $ a >> b
-
+  a `mappend` b = a <> b
 
 applyAttribute' :: (RealFrac r, ApplyAttr label)
                 => Attr (AttrMapSym1 r) label -> CanvasM

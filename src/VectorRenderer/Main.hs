@@ -85,8 +85,8 @@ axes = [ triangle origin
                   (Point3 0 500 (-10))
                   (Point3 0 500 0) :+ Canvas.green 255
        , triangle origin
-                  (Point3 0 (-10) 35)
-                  (Point3 0 0     35) :+ Canvas.blue 255
+                  (Point3 0 (-10) 49)
+                  (Point3 0 0     49) :+ Canvas.blue 255
        ]
 
 -- myScene :: Scene Double
@@ -163,11 +163,11 @@ networkDescription = do
     drawingAreaH <- realToFrac . fromIntegral . snd <$> #getPreferredHeight drawingArea
     drawingAreaW <- realToFrac . fromIntegral . snd <$> #getPreferredWidth  drawingArea
 
-    Gtk.widgetAddEvents drawingArea (gflagsToWord [ Gdk.EventMaskPointerMotionMask
-                                                  , Gdk.EventMaskButtonPressMask
-                                                  , Gdk.EventMaskSmoothScrollMask
-                                                  , Gdk.EventMaskKeyPressMask
-                                                  ])
+    Gtk.widgetAddEvents drawingArea [ Gdk.EventMaskPointerMotionMask
+                                    , Gdk.EventMaskButtonPressMask
+                                    , Gdk.EventMaskSmoothScrollMask
+                                    , Gdk.EventMaskKeyPressMask
+                                    ]
 
     -- scroll Events
     scrollE <- signalE1' drawingArea #scrollEvent $ \e ->

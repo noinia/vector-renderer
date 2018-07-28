@@ -51,12 +51,9 @@ signalE1'
     -> SignalProxy self info
     -> (a -> IO b) -- ^ function to transform the Event with
     -> MomentIO (Event b)
-signalE1' self signal h = signalEN self signal f >>= mapEventIO h
-  where
-    f g = \a -> g a >> return True -- we return True because the event has been
-                                   -- handled, don't want to propagate it
-                                   -- further
-
+signalE1' self signal h = signalE1R self signal True >>= mapEventIO h
+  -- we pass 'True' because the event has been handled, don't want to propagate
+  -- it further
 
 draw                :: Gtk.DrawingArea -> Behavior (Canvas ()) -> MomentIO ()
 draw drawingArea bc = do
