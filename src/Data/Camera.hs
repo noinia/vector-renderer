@@ -5,13 +5,13 @@ import VectorRenderer.Import hiding (snoc,element)
 import Data.Geometry.Point
 import Data.Geometry.Vector
 import Data.Geometry.Transformation
-
+import Data.Default
 import Data.Geometry.Triangle
 
 data Camera r = Camera { _cameraPosition   :: !(Point 3 r)
-                       , _cameraNormal     :: !(Vector 3 r)
+                       , _rawCameraNormal  :: !(Vector 3 r)
                          -- ^ unit vector from camera into center of the screen
-                       , _viewUp           :: !(Vector 3 r)
+                       , _rawViewUp        :: !(Vector 3 r)
                        -- ^ viewUp; assumed to be unit vector
                        , _viewPlaneDepth   :: !r
                        , _nearDist         :: !r
@@ -19,6 +19,23 @@ data Camera r = Camera { _cameraPosition   :: !(Point 3 r)
                        , _screenDimensions :: !(Vector 2 r)
                        } deriving (Show,Eq,Ord)
 makeLenses ''Camera
+
+instance Fractional r => Default (Camera r) where
+  def = Camera origin
+               (Vector3 0 0 (-1))
+               (Vector3 0 1 0)
+               (1/10) -- pick vp dist to be the same as the camera dist
+               (1/10)
+               1000
+               (Vector2 800 600)
+
+
+cameraNormal :: Floating r => Lens' (Camera r) (Vector 3 r)
+cameraNormal = lens _rawCameraNormal (\c n -> c { _rawCameraNormal = signorm n} )
+
+viewUp :: Floating r => Lens' (Camera r) (Vector 3 r)
+viewUp = lens _rawViewUp (\c n -> c { _rawViewUp = signorm n})
+
 
 
 myT :: Triangle 3 () Double
@@ -68,33 +85,33 @@ rotateCoordSystem c = Transformation . Matrix $ Vector4 (snoc u        0)
                                                         (snoc n        0)
                                                         (Vector4 0 0 0 1)
   where
-    u = (c^.viewUp) `cross` n
+    u = (c^.rawViewUp) `cross` n
     v = n `cross` u
-    n = (-1) *^ c^.cameraNormal -- we need the normal from the scene *into* the camera
+    n = (-1) *^ c^.rawCameraNormal -- we need the normal from the scene *into* the camera
 
 testRotate   :: Camera Double -> [Vector 3 Double]
 testRotate c = map (transformBy t) [u, v, n]
   where
-    u = (c^.viewUp) `cross` n
+    u = (c^.rawViewUp) `cross` n
     v = n `cross` u
-    n = (-1) *^ c^.cameraNormal -- we need the normal from the scene *into* the camera
+    n = (-1) *^ c^.rawCameraNormal -- we need the normal from the scene *into* the camera
     t = rotateCoordSystem c
 
 testToWorld   :: Camera Double -> [Vector 3 Double]
 testToWorld c = map (transformBy t) [u, v, n, Vector3 80 20 40]
   where
-    u = (c^.viewUp) `cross` n
+    u = (c^.rawViewUp) `cross` n
     v = n `cross` u
-    n = (-1) *^ c^.cameraNormal -- we need the normal from the scene *into* the camera
+    n = (-1) *^ c^.rawCameraNormal -- we need the normal from the scene *into* the camera
     t = worldToView c
 
 
 testProjection   :: Camera Double -> [Vector 3 Double]
 testProjection c = map (transformBy t) [Vector3 30 30 (-10), Vector3 (30*50/10) 30 (-50)]
   where
-    u = (c^.viewUp) `cross` n
+    u = (c^.rawViewUp) `cross` n
     v = n `cross` u
-    n = (-1) *^ c^.cameraNormal -- we need the normal from the scene *into* the camera
+    n = (-1) *^ c^.rawCameraNormal -- we need the normal from the scene *into* the camera
     t = perspectiveProjection c
 
 -- transformBy' (Transformation m) (Vector3 x y z) = m `mult` (Vector4 x y z (-z))
