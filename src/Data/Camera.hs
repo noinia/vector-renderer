@@ -80,10 +80,7 @@ perspectiveProjection c = Transformation . Matrix $
 -- | Rotates coordinate system around the camera, such that we look in the negative z
 -- direction
 rotateCoordSystem   :: Num r => Camera r -> Transformation 3 r
-rotateCoordSystem c = Transformation . Matrix $ Vector4 (snoc u        0)
-                                                        (snoc v        0)
-                                                        (snoc n        0)
-                                                        (Vector4 0 0 0 1)
+rotateCoordSystem c = rotateTo $ Vector3 u v n
   where
     u = (c^.rawViewUp) `cross` n
     v = n `cross` u

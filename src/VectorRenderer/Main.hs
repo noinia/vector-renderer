@@ -7,10 +7,15 @@ module VectorRenderer.Main where
 import           Control.Exception (catch)
 import           Data.Camera
 import           Data.GI.Base
+import           Data.Geometry.Arrangement
+import           Data.Geometry.PlanarSubdivision
+import           Data.Geometry.Arrangement.Draw
+import           Data.Geometry.Ipe.Color (IpeColor(..))
+import qualified Data.Geometry.Ipe.Color as Ipe
 import           Data.Geometry.Point
-import           Data.Geometry.Vector
-import           Data.Geometry.Triangle
 import           Data.Geometry.Transformation
+import           Data.Geometry.Triangle
+import           Data.Geometry.Vector
 import qualified Data.Text as T
 import qualified GI.Gdk as Gdk
 import qualified GI.Gtk as Gtk
@@ -24,7 +29,8 @@ import           VectorRenderer.Import
 -- import           VectorRenderer.Project
 import           VectorRenderer.RenderUtil
 import qualified VectorRenderer.RenderCanvas as Render
-
+import qualified Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval as HiddenSurfaceRemoval
+import           Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval (EdgeSide(..), Tri)
 
 --------------------------------------------------------------------------------
 
@@ -37,14 +43,14 @@ import qualified VectorRenderer.RenderCanvas as Render
 --                   30
 --                   (Vector2 800 600)
 
-type Scene r = [Triangle 3 () r :+ Canvas.Color]
+type Scene r = [Triangle 3 () r :+ IpeColor r]
 
 
 triangle       :: Point 3 r -> Point 3 r -> Point 3 r -> Triangle 3 () r
 triangle p q r = Triangle (ext p) (ext q) (ext r)
 
 
-mkBottom :: r -> (r,r) -> (r,r) -> Canvas.Color -> [Triangle 3 () r :+ Canvas.Color]
+mkBottom :: r -> (r,r) -> (r,r) -> c -> [Triangle 3 () r :+ c]
 mkBottom z (lx, ly) (rx, ry) c = [ triangle (Point3 lx ly z)
                                             (Point3 rx ly z)
                                             (Point3 lx ry z) :+ c
@@ -67,26 +73,26 @@ ySide = map (\(t :+ c) -> pmap toY t :+ c)
     toY (Point3 x y z) = Point3 x z y
 
 
-myScene = [myT :+ Canvas.red 255
+myScene = [myT :+ Ipe.red
           , triangle origin
                      (Point3 0 40 (-10))
-                     (Point3 0 0  (-10)) :+ Canvas.blue 255
+                     (Point3 0 0  (-10)) :+ Ipe.blue
           , triangle (Point3 0 0 (-50))
                      (Point3 0 40 (-10))
-                     (Point3 0 0  (-10)) :+ Canvas.green 255
+                     (Point3 0 0  (-10)) :+ Ipe.green
           ]
         ++ axes
         -- ++ cube
 
 axes = [ triangle origin
                   (Point3 500 0 (-10))
-                  (Point3 500 0 0) :+ Canvas.red 255
+                  (Point3 500 0 0) :+ Ipe.red
        , triangle origin
                   (Point3 0 500 (-10))
-                  (Point3 0 500 0) :+ Canvas.green 255
+                  (Point3 0 500 0) :+ Ipe.green
        , triangle origin
                   (Point3 0 (-10) 49)
-                  (Point3 0 0     49) :+ Canvas.blue 255
+                  (Point3 0 0     49) :+ Ipe.blue
        ]
 
 -- myScene :: Scene Double
@@ -203,7 +209,7 @@ shiftCamera     :: Num r => ArrowKey -> Camera r -> Camera r
 shiftCamera k c = c&cameraPosition %~ (.+^ 2 *^ toDirection k)
 
 
-drawScene         :: (Fractional r, Real r)
+drawScene         :: (Fractional r, Real r, RealFrac r)
                   => Double -> Double
                   -> Camera r
                   -> Scene r
@@ -225,10 +231,35 @@ render (Triangle p q r) = Triangle (p&core %~ projectPoint)
 
 
 renderScene     :: Fractional r => Camera r -> Scene r
-                -> [Triangle 2 () r :+ Canvas.Color]
+                -> [Triangle 2 () r :+ IpeColor r]
 renderScene c s = over core (render . transformBy t) <$> s
   where
     !t = cameraTransform c
+
+renderScene'     :: Fractional r => Camera r -> Scene r
+                 -> [Triangle 2 () r :+ (Triangle 3 () r :+ IpeColor r)]
+renderScene' c s = (\t3 -> (render . transformBy t $ t3^.core) :+ t3) <$> s
+  where
+    !t = cameraTransform c
+
+
+
+data Screen = Screen
+
+renderAll      :: (Ord r, Fractional r, RealFrac r)
+               => Camera r -> Scene r
+               -> Arrangement Screen
+                              (Tri () () (IpeColor r) r)
+                              ()
+                              (Maybe EdgeSide)
+                              (Maybe (IpeColor r))
+                              r
+renderAll c s = arr&subdivision.faceData %~ mkColor
+  where
+    arr = HiddenSurfaceRemoval.render (Identity Screen) (c^.cameraPosition) ts
+    ts = renderScene' c s
+    mkColor = undefined
+
 
 
 -- | Mirror the canvas s.t. the bottom-left corner is the origin

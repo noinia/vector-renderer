@@ -2,27 +2,32 @@
 module VectorRenderer.RenderCanvas where
 
 import           Control.Lens
-import           Data.Colour.SRGB(RGB(..), toSRGB24)
-import           Data.Colour.Names(readColourName)
+import           Data.Colour.Names (readColourName)
+import           Data.Colour.SRGB (RGB(..), toSRGB24)
 import           Data.Ext
 import           Data.Geometry
-import           Data.Geometry.Vector.VectorFamilyPeano
-import           Data.Geometry.Triangle
 import           Data.Geometry.Box
 import           Data.Geometry.Ipe.Attributes
-import           Data.Geometry.Ipe.Types hiding (ipeObject', width)
 import qualified Data.Geometry.Ipe.Attributes as A
+import           Data.Geometry.Ipe.Color
+import           Data.Geometry.Ipe.Types hiding (ipeObject', width)
+import           Data.Geometry.Ipe.Value
+import           Data.Geometry.Triangle
+import           Data.Geometry.Vector.VectorFamilyPeano
+import           Data.Maybe (fromMaybe)
 import           Data.Proxy
+import qualified Data.Text as T
 import           Data.Vinyl
-import           Linear.V2 (V2)
-import           Linear.V4 (V4(..))
 import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
-import qualified Data.Text as T
+import           Linear.V2 (V2)
+import           Linear.V4 (V4(..))
 
+colored     :: RealFrac r => (a -> Canvas b) -> (a :+ IpeColor r) -> Canvas b
+colored f x = colored' f (x&extra %~ fromMaybe (Canvas.gray 255) . toCanvasColor)
 
-colored            :: (a -> Canvas b) -> (a :+ Canvas.Color) -> Canvas b
-colored f (x :+ c) = Canvas.fill c >> f x
+colored'            :: (a -> Canvas b) -> (a :+ Canvas.Color) -> Canvas b
+colored' f (x :+ c) = Canvas.fill c >> f x
 
 
 rectangle    :: (Real r, Ord r, Num r) => Rectangle p r -> Canvas ()
