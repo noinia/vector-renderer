@@ -13,6 +13,7 @@ import           Data.Geometry.Ipe.Color
 import           Data.Geometry.Ipe.Types hiding (ipeObject', width)
 import           Data.Geometry.Ipe.Value
 import           Data.Geometry.Triangle
+import           Data.Geometry.Ipe.IpeOut(IpeOut,iO)
 import           Data.Geometry.Vector.VectorFamilyPeano
 import           Data.Maybe (fromMaybe)
 import           Data.Proxy
@@ -22,6 +23,9 @@ import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
 import           Linear.V2 (V2)
 import           Linear.V4 (V4(..))
+
+--------------------------------------------------------------------------------
+
 
 colored     :: RealFrac r => (a -> Canvas b) -> (a :+ IpeColor r) -> Canvas b
 colored f x = colored' f (x&extra %~ fromMaybe (Canvas.gray 255) . toCanvasColor)
@@ -77,6 +81,8 @@ ipePath (Path p) = mapM_ pathSegment p
 ipeGroup :: RealFrac r => Group r -> Canvas ()
 ipeGroup = mapM_ ipeObject . _groupItems
 
+
+
 ipeObject'              :: forall g r. (RealFrac r, AllSatisfy ApplyAttr (AttributesOf g))
                         => (g r -> Canvas ())
                         -> g r :+ IpeAttributes g r
@@ -96,6 +102,9 @@ ipeObject (IpeMiniPage _)  = undefined
 ipeObject (IpeUse p)       = ipeObject' ipeUse  p
 ipeObject (IpePath p)      = ipeObject' ipePath p
 
+
+ipeOut    :: (RealFrac r, ToObject i) => IpeOut g i r -> g -> Canvas ()
+ipeOut io = ipeObject . iO . io
 
 applyAttributes               :: (RealFrac r, AllSatisfy ApplyAttr (AttributesOf g))
                               => proxy g -> IpeAttributes g r -> Canvas ()

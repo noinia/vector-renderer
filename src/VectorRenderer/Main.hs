@@ -8,14 +8,16 @@ import           Control.Exception (catch)
 import           Data.Camera
 import           Data.GI.Base
 import           Data.Geometry.Arrangement
-import           Data.Geometry.PlanarSubdivision
 import           Data.Geometry.Arrangement.Draw
 import           Data.Geometry.Ipe.Color (IpeColor(..))
 import qualified Data.Geometry.Ipe.Color as Ipe
+import           Data.Geometry.PlanarSubdivision
 import           Data.Geometry.Point
+import           Data.Geometry.Box(Rectangle,box)
 import           Data.Geometry.Transformation
 import           Data.Geometry.Triangle
 import           Data.Geometry.Vector
+import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as T
 import qualified GI.Gdk as Gdk
 import qualified GI.Gtk as Gtk
@@ -32,6 +34,8 @@ import qualified VectorRenderer.RenderCanvas as Render
 import qualified Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval as HiddenSurfaceRemoval
 import           Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval (EdgeSide(..), Tri)
 
+import           Debug.Trace
+import Data.Geometry.Ipe(IpeWriteText(..))
 --------------------------------------------------------------------------------
 
 -- myCamera :: Camera Rational
@@ -46,17 +50,13 @@ import           Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval (
 type Scene r = [Triangle 3 () r :+ IpeColor r]
 
 
-triangle       :: Point 3 r -> Point 3 r -> Point 3 r -> Triangle 3 () r
-triangle p q r = Triangle (ext p) (ext q) (ext r)
-
-
 mkBottom :: r -> (r,r) -> (r,r) -> c -> [Triangle 3 () r :+ c]
-mkBottom z (lx, ly) (rx, ry) c = [ triangle (Point3 lx ly z)
-                                            (Point3 rx ly z)
-                                            (Point3 lx ry z) :+ c
-                                 , triangle (Point3 lx ry z)
-                                            (Point3 rx ry z)
-                                            (Point3 rx ly z) :+ c
+mkBottom z (lx, ly) (rx, ry) c = [ triangle' (Point3 lx ly z)
+                                             (Point3 rx ly z)
+                                             (Point3 lx ry z) :+ c
+                                 , triangle' (Point3 lx ry z)
+                                             (Point3 rx ry z)
+                                             (Point3 rx ly z) :+ c
                                  ]
 
 
@@ -73,26 +73,27 @@ ySide = map (\(t :+ c) -> pmap toY t :+ c)
     toY (Point3 x y z) = Point3 x z y
 
 
+myScene :: Scene Rational
 myScene = [myT :+ Ipe.red
-          , triangle origin
-                     (Point3 0 40 (-10))
-                     (Point3 0 0  (-10)) :+ Ipe.blue
-          , triangle (Point3 0 0 (-50))
-                     (Point3 0 40 (-10))
-                     (Point3 0 0  (-10)) :+ Ipe.green
+          , triangle' origin
+                      (Point3 0 40 (-10))
+                      (Point3 0 0  (-10)) :+ Ipe.blue
+          , triangle' (Point3 0 0 (-50))
+                      (Point3 0 40 (-10))
+                      (Point3 0 0  (-10)) :+ Ipe.green
           ]
         ++ axes
         -- ++ cube
 
-axes = [ triangle origin
-                  (Point3 500 0 (-10))
-                  (Point3 500 0 0) :+ Ipe.red
-       , triangle origin
-                  (Point3 0 500 (-10))
-                  (Point3 0 500 0) :+ Ipe.green
-       , triangle origin
-                  (Point3 0 (-10) 49)
-                  (Point3 0 0     49) :+ Ipe.blue
+axes = [ triangle' origin
+                   (Point3 500 0 (-10))
+                   (Point3 500 0 0) :+ Ipe.red
+       , triangle' origin
+                   (Point3 0 500 (-10))
+                   (Point3 0 500 0) :+ Ipe.green
+       , triangle' origin
+                   (Point3 0 (-10) 49)
+                   (Point3 0 0     49) :+ Ipe.blue
        ]
 
 -- myScene :: Scene Double
@@ -209,7 +210,9 @@ shiftCamera     :: Num r => ArrowKey -> Camera r -> Camera r
 shiftCamera k c = c&cameraPosition %~ (.+^ 2 *^ toDirection k)
 
 
-drawScene         :: (Fractional r, Real r, RealFrac r)
+drawScene         :: (Fractional r, Real r, RealFrac r
+                     , Show r, IpeWriteText r, Read r
+                     )
                   => Double -> Double
                   -> Camera r
                   -> Scene r
@@ -222,7 +225,11 @@ drawScene w h c s = do
           Canvas.scale     $ V2 (w/cw) (h/ch)
           Canvas.stroke $ Canvas.gray 0
           -- mapM_ (Render.colored Render.triangle . project c) s
-          mapM_ (Render.colored Render.triangle) $ renderScene c s
+          -- mapM_ (Render.colored Render.triangle) $ renderScene c s
+          let arr' = renderAll c s
+              arr = traceShow ("woei!",arr') arr'
+          Render.ipeOut drawColoredArrangement $ arr
+
 
 
 render (Triangle p q r) = Triangle (p&core %~ projectPoint)
@@ -246,19 +253,29 @@ renderScene' c s = (\t3 -> (render . transformBy t $ t3^.core) :+ t3) <$> s
 
 data Screen = Screen
 
-renderAll      :: (Ord r, Fractional r, RealFrac r)
+
+
+renderAll      :: forall r. (Ord r, Fractional r, RealFrac r
+                  , Show r, IpeWriteText r, Read r
+                  )
                => Camera r -> Scene r
                -> Arrangement Screen
-                              (Tri () () (IpeColor r) r)
+                              (NonEmpty.NonEmpty (Tri () () (IpeColor r) r))
                               ()
                               (Maybe EdgeSide)
                               (Maybe (IpeColor r))
                               r
-renderAll c s = arr&subdivision.faceData %~ mkColor
+renderAll c s = arr&subdivision.faceData %~ fmap mkColor
   where
-    arr = HiddenSurfaceRemoval.render (Identity Screen) (c^.cameraPosition) ts
+    arr = HiddenSurfaceRemoval.render (Identity Screen) (c^.cameraPosition) rect ts
     ts = renderScene' c s
-    mkColor = undefined
+    -- ts = HiddenSurfaceRemoval.scene
+    mkColor = fmap (^.extra.extra)
+    rect :: Rectangle () r
+    rect = box (ext origin) (ext . Point $ c^.screenDimensions)
+
+
+
 
 
 
