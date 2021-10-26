@@ -7,6 +7,7 @@ import           Data.Colour.SRGB (RGB(..), toSRGB24)
 import           Data.Ext
 import           Data.Geometry
 import           Data.Geometry.Box
+import           Data.Geometry.Box.Corners
 import           Data.Geometry.Ipe.Attributes
 import qualified Data.Geometry.Ipe.Attributes as A
 import           Data.Geometry.Ipe.Color
@@ -19,6 +20,7 @@ import           Data.Maybe (fromMaybe)
 import           Data.Proxy
 import qualified Data.Text as T
 import           Data.Vinyl
+import           Data.Vinyl.TypeLevel
 import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
 import           Linear.V2 (V2)
@@ -35,13 +37,13 @@ colored' f (x :+ c) = Canvas.fill c >> f x
 
 
 rectangle    :: (Real r, Ord r, Num r) => Rectangle p r -> Canvas ()
-rectangle r' = let r                       = bimap id realToFrac r'
-                   (Point2 x y :+ _,_,_,_) = corners r
+rectangle r' = let r                                 = bimap id realToFrac r'
+                   (Corners (Point2 x y :+ _) _ _ _) = corners r
                in Canvas.rect $ Canvas.D x y (width r) (height r)
 
 polygon     :: Real r => SimplePolygon p r -> Canvas ()
 polygon pg' = let pg = bimap id realToFrac pg'
-              in Canvas.polygon $ pg^..outerBoundary.traverse.core.toV2'
+              in Canvas.polygon $ pg^..outerBoundaryVector.traverse.core.toV2'
 
 lineSegment    :: Real r => LineSegment 2 p r -> Canvas ()
 lineSegment s' = let s = bimap id realToFrac s'
@@ -52,11 +54,11 @@ polyLine p' = let p = bimap id realToFrac p'
               in Canvas.shape Canvas.ShapeLines $ p^..points.traverse.core.toV2'
 
 triangle                                         :: Real r => Triangle 2 p r -> Canvas ()
-triangle t' = let (Triangle p q r) = realToFrac <$> t' in
+triangle t' = let (Triangle p q r) = bimap id realToFrac t' in
     Canvas.triangle (p^.core.toV2') (q^.core.toV2') (r^.core.toV2')
 
 toV2' :: Getter (Point 2 r) (V2 r)
-toV2' = vector.unV.unVF
+toV2' = vector.unV.to (\(VectorFamily v2) -> v2)
 
 -- | draw a point as a small disk
 point   :: Real r => Point 2 r -> Canvas ()
@@ -79,11 +81,11 @@ ipePath          :: Real r => Path r -> Canvas ()
 ipePath (Path p) = mapM_ pathSegment p
 
 ipeGroup :: RealFrac r => Group r -> Canvas ()
-ipeGroup = mapM_ ipeObject . _groupItems
+ipeGroup = mapM_ ipeObject . view groupItems
 
 
 
-ipeObject'              :: forall g r. (RealFrac r, AllSatisfy ApplyAttr (AttributesOf g))
+ipeObject'              :: forall g r. (RealFrac r, AllConstrained ApplyAttr (AttributesOf g))
                         => (g r -> Canvas ())
                         -> g r :+ IpeAttributes g r
                         -> Canvas ()
@@ -106,11 +108,11 @@ ipeObject (IpePath p)      = ipeObject' ipePath p
 ipeOut    :: (RealFrac r, ToObject i) => IpeOut g i r -> g -> Canvas ()
 ipeOut io = ipeObject . iO . io
 
-applyAttributes               :: (RealFrac r, AllSatisfy ApplyAttr (AttributesOf g))
+applyAttributes               :: (RealFrac r, AllConstrained ApplyAttr (AttributesOf g))
                               => proxy g -> IpeAttributes g r -> Canvas ()
 applyAttributes _ (Attrs ats) = applyAttributes' ats
 
-applyAttributes'            :: (RealFrac r, AllSatisfy ApplyAttr rs)
+applyAttributes'            :: (RealFrac r, AllConstrained ApplyAttr rs)
                             => Rec (Attr (AttrMapSym1 r)) rs
                             -> Canvas ()
 applyAttributes' RNil       = pure ()
