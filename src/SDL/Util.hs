@@ -4,7 +4,6 @@ module SDL.Util
   ) where
 
 import Reflex.SDL2
-import SDL.Cairo
 import Data.Text
 import Foreign.C.Types(CInt)
 
@@ -21,8 +20,8 @@ withWindow title cfg f = do window <- createWindow title cfg
 -- | Creates a renderer (using the same arguments as 'createRenderer',
 -- runs the function on it, and finally destroys the renderer.)
 withRenderer                     :: MonadIO m
-                                 => Window -> CInt -> p -> (Renderer -> m b) -> m b
-withRenderer window driver cfg f = do renderer <- createRenderer window driver defaultRenderer
+                                 => Window -> CInt -> RendererConfig  -> (Renderer -> m b) -> m b
+withRenderer window driver cfg f = do renderer <- createRenderer window driver cfg
                                       res <- f renderer
                                       destroyRenderer renderer
                                       pure res

@@ -1,20 +1,13 @@
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE LambdaCase            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE UndecidableInstances  #-}
 module Main where
 
-import Control.Concurrent (threadDelay)
+
 import Control.Monad (forM_, guard, void)
 -- import Control.Monad.Reader (MonadReader (..), runReaderT)
 import Graphics.Rendering.Cairo.Canvas hiding (withRenderer)
 import Reflex
 import Reflex.SDL2
-import SDL.Cairo
-import Debug.Trace
+
 
 import SDL.Util
 import VectorRenderer.ReflexSDLRenderer
@@ -164,17 +157,13 @@ reflexMain = do
       pure $ renderAABB color pos
 
 
+white :: Color
 white = gray 255
+
+black :: Color
 black = gray 0
 
 --------------------------------------------------------------------------------
-
-
-
-
-
-
-
 
 main :: IO ()
 main = do
@@ -190,25 +179,3 @@ main = do
     withRenderer window (-1) defaultRenderer $ \renderer -> do
       host $ reflexSdlApp window renderer reflexMain
   quit
-
-
--- main :: IO ()
--- main = do
---   initializeAll
---   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
---       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
---                          , windowResizable       = True
---                          -- , windowHighDPI         = False
---                          -- , windowInitialSize     = V2 640 480
---                          }
---   window <- createWindow "convex hull" cfg
---   void $ glCreateContext window
-
---   putStrLn "creating renderer..."
---   renderer <- createRenderer window (-1) defaultRenderer
-
---   host $ reflexSdlApp window renderer reflexMain
-
---   destroyRenderer renderer
---   destroyWindow window
---   quit
