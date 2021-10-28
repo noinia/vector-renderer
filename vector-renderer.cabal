@@ -29,25 +29,28 @@ library
                    -- VectorRenderer.Import
                    -- VectorRenderer.RenderCanvas
                    -- VectorRenderer.RenderUtil
+                   VectorRenderer.ReflexSDLRenderer
+                   SDL.Util
 
   hs-source-dirs: src
 
   build-depends:      base                    ^>= 4.14.1.0
+                    , cairo-canvas            ^>= 0.1.0.0
+                    , colour                  ^>= 2.3
+                    , data-default            ^>= 0.7
                     , hgeometry               ^>= 0.12
                     , hgeometry-combinatorial ^>= 0.12
                     , hgeometry-ipe           ^>= 0.12
-                    , reflex-sdl2             ^>= 0.3.0.2
-                    , data-default            ^>= 0.7
                     , lens                    ^>= 4.19
                     , linear                  ^>= 1.21
-                    , vinyl                   ^>= 0.13
-                    , text                    ^>= 1.2
+                    , mtl                     ^>= 2.2.2
+                    , reflex ^>= 0.8.1.0
+                    , reflex-sdl2             ^>= 0.3.0.2
                     , sdl2                    ^>= 2.5
                     , sdl2-cairo              ^>= 0.2
-                    , cairo-canvas            ^>= 0.1.0.0
-                    , colour                  ^>= 2.3
-                    , mtl                     ^>= 2.2.2
+                    , text                    ^>= 1.2
                     , transformers            ^>= 0.5
+                    , vinyl                   ^>= 0.13
 
 
   default-language:    Haskell2010
@@ -82,7 +85,7 @@ library
 
 executable vector-renderer
     main-is:
-      Test.hs
+      ConvexHull.hs
 
     -- Modules included in this executable, other than Main.
     -- other-modules:
@@ -91,9 +94,14 @@ executable vector-renderer
     -- other-extensions:
     build-depends:    base ^>=4.14.1.0
                     , vector-renderer
-                    , reflex-sdl2
+
+
                     , mtl
                     , reflex
+                    , reflex ^>= 0.8.1.0
+                    , reflex-sdl2
+                    , cairo-canvas
+                    , sdl2-cairo
 
     hs-source-dirs:   app
     default-language: Haskell2010

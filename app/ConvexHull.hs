@@ -10,14 +10,16 @@ module Main where
 import Control.Concurrent (threadDelay)
 import Control.Monad (forM_, guard, void)
 -- import Control.Monad.Reader (MonadReader (..), runReaderT)
-import Graphics.Rendering.Cairo.Canvas
+import Graphics.Rendering.Cairo.Canvas hiding (withRenderer)
 import Reflex
 import Reflex.SDL2
 import SDL.Cairo
-
-
 import Debug.Trace
 
+import SDL.Util
+import VectorRenderer.ReflexSDLRenderer
+
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- | An axis aligned bounding box.
@@ -34,46 +36,23 @@ mouseButtonToAABB dat = AABB (mouseButtonEventMotion dat) pos
 
 --------------------------------------------------------------------------------
 -- | Convert a mouse button motion to color.
-motionToColor :: InputMotion -> V4 Int
-motionToColor Released = V4 255 0 0   128
-motionToColor Pressed  = V4 0   0 255 128
+motionToColor :: InputMotion -> Color
+motionToColor Released = fromIntegral <$> V4 255 0 0   128
+motionToColor Pressed  = fromIntegral <$> V4 0   0 255 128
 
 
 --------------------------------------------------------------------------------
 -- | Renders an AABB using the handy SDL 2d 'Renderer'.
 
-renderAABB :: V4 Int -> V2 Int -> Canvas ()
-renderAABB color pos = do fill (fromIntegral <$> color)
+renderAABB :: Color -> V2 Int -> Canvas ()
+renderAABB color pos = do fill color
                           rect $ D (x-10) (y-10) 20 20
   where
     V2 x y = fromIntegral <$> pos
 
--------------------------------------------------------------------------------
--- | A type representing one layer in our app.
--- type Layer m = Performable m ()
-type Layer (m :: * -> *) = Canvas ()
-
-----------------------------------------------------------------------
--- | Commit a layer stack that changes over time.
-commitLayers :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m)
-      => Dynamic t [Layer m] -> m ()
-commitLayers = tellDyn
 
 
-----------------------------------------------------------------------
--- | Commit one layer that changes over time.
-commitLayer :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m)
-            => Dynamic t (Layer m) -> m ()
-commitLayer = tellDyn . fmap pure
-
-
-ffor2 :: Reflex t => Dynamic t a -> Dynamic t b -> (a -> b -> c) -> Dynamic t c
-ffor2 a b f = zipDynWith f a b
-
-ffor2up
-  :: Reflex t => Dynamic t a -> Dynamic t b1 -> ((a, b1) -> b) -> Dynamic t b
-ffor2up a b = ffor (zipDyn a b)
-
+--------------------------------------------------------------------------------
 
 data ButtonState = ButtonStateUp
                  | ButtonStateOver
@@ -89,7 +68,7 @@ buttonState isInside isDown
 
 
 button
-  :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m)
+  :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)
   => m (Event t ButtonState)
 button = do
   evMotionData <- getMouseMotionEvent
@@ -111,7 +90,7 @@ button = do
   dButtonState <- holdDyn ButtonStateUp $ leftmost [ updated dButtonStatePre
                                                    , ButtonStateUp <$ evPB
                                                    ]
-  commitLayer $ ffor dButtonState $ \st ->
+  drawLayer $ ffor dButtonState $ \st ->
     let color = case st of
                   ButtonStateUp   -> V4 192 192 192 255
                   ButtonStateOver -> 255
@@ -122,28 +101,13 @@ button = do
   updated <$> holdUniqDyn dButtonState
 
 
+--------------------------------------------------------------------------------
 
 
-guest
-  :: (ReflexSDL2 t m, DynamicWriter t [Layer m] m)
-  => m ()
-guest = do
-  -- Print some stuff after the network is built.
-  evPB <- getPostBuild
-  performEvent_ $ ffor evPB $ \() ->
-    liftIO $ putStrLn "starting up..."
-
-  ------------------------------------------------------------------------------
-  -- Test async events.
-  -- This will wait three seconds before coloring the background white
-  ------------------------------------------------------------------------------
-  evDelay <- getAsyncEvent $ threadDelay 3000000
-  dDelay  <- holdDyn False $ True <$ evDelay
-  commitLayers $ ffor dDelay $ \case
-    False -> pure $ do
-      background (V4 128 128 128 255)
-    True  -> pure $ do
-      background (V4 255 255 255 255)
+-- | Main reflex app that can also render layers
+reflexMain :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)
+           => m ()
+reflexMain = do
 
   -- ------------------------------------------------------------------------------
   -- -- A button!
@@ -152,148 +116,99 @@ guest = do
   let evBtnPressed = fmapMaybe (guard . (== ButtonStateDown)) evBtnState
   performEvent_ $ ffor evBtnPressed $ const $ liftIO $ putStrLn "Button pressed!"
 
+
+  --------------------------------------------------------------------------------
+  -- draw the points
+
+  evClicked <- getMouseButtonEvent
+  dPoints <- foldDyn (\dat pts -> let P pos = fromIntegral <$> mouseButtonEventPos dat
+                                  in pos : pts
+                     ) [] evClicked
+  drawLayer $ ffor dPoints $ \points -> mapM_ (renderAABB $ blue 255) $ reverse points
+
+
+
   ------------------------------------------------------------------------------
   -- Ghosty trail of squares
   ------------------------------------------------------------------------------
-  -- Gather all mouse motion events into a list, then commit a commitLayers that
+  -- Gather all mouse motion events into a list, then draw a drawLayers that
   -- renders each move as a quarter alpha'd yello or cyan square.
   evMouseMove <- getMouseMotionEvent
-  dMoves      <- foldDyn (\x xs -> take 100 $ x : xs) [] evMouseMove
-  commitLayer $ ffor dMoves $ \moves ->
-    forM_ (reverse moves) $ \dat ->
-      let P pos = fromIntegral <$> mouseMotionEventPos dat
-          color = if null (mouseMotionEventState dat)
-                  then V4 255 255 0   128
-                  else V4 0   255 255 128
-      in renderAABB color pos
 
+  -- I guess we still want to detect when we go outside of the screen again.
+  dMousePos <- holdDyn Nothing (Just <$> evMouseMove)
+  let dMousePosDrawing = ffor dMousePos $ \case
+        Nothing  -> pure () -- don't draw anything
+        Just dat -> let P pos = fromIntegral <$> mouseMotionEventPos dat
+                        color = if null (mouseMotionEventState dat)
+                                then V4 255 255 0   128
+                                else V4 0   255 255 128
+                    in renderAABB color pos
+  drawLayer dMousePosDrawing
 
+  -- dMoves      <- foldDyn (\x _ -> Just x) Nothing evMouseMove
+  -- dMoves      <- foldDyn (\x xs -> take 100 $ x : xs) [] evMouseMove
+  -- drawLayer $ fforMaybe dMoves $ fmap $ \dat ->
 
   ------------------------------------------------------------------------------
   -- Up and down squares
   ------------------------------------------------------------------------------
   -- Get any mouse button event and accumulate them as a list of
-  -- AABBs. Commit a commitLayers of those rendered up/down AABBs.
+  -- AABBs. Draw a drawLayers of those rendered up/down AABBs.
   evMouseButton <- getMouseButtonEvent
   dBtns         <- foldDyn (\x xs -> take 100 $ x : xs) [] evMouseButton
-  commitLayer $ ffor dBtns $ \btns ->
+  drawLayer $ ffor dBtns $ \btns ->
     forM_ (reverse btns) $ \dat -> do
       let AABB motion pos = mouseButtonToAABB dat
           color = motionToColor motion
       pure $ renderAABB color pos
 
-  ------------------------------------------------------------------------------
-  -- An ephemeral commitLayers that only renders when a key is down, and only listens
-  -- to the tick event while that key is down.
-  -- This is an example of the higher-order nature of the reflex network. We
-  -- can update the shape of the network in response to events within it.
-  ------------------------------------------------------------------------------
-  evKey <- getKeyboardEvent
-  let evKeyNoRepeat = fmapMaybe (\k -> k <$ guard (not $ keyboardEventRepeat k)) evKey
-  dPressed <- holdDyn False $ (== Pressed) . keyboardEventKeyMotion <$> evKeyNoRepeat
-  void $ holdView (return ()) $ ffor (updated dPressed) $ \case
-    False -> return ()
-    True  -> do
-      evDeltaTick <- getDeltaTickEvent
-      dTimePressed <- foldDyn (+) 0 evDeltaTick
-      commitLayer $ ffor dTimePressed $ \t ->
-        let wrap :: Float -> Int
-            wrap x = if x > 255 then wrap (x - 255) else floor x
-            rc    = wrap $ fromIntegral t/1000 * 255
-            gc    = wrap $ fromIntegral t/2000 * 255
-            bc    = wrap $ fromIntegral t/3000 * 255
-            color :: V4 Int
-            color = fromIntegral <$> V4 rc gc bc 255
-        in renderAABB color 100
 
-  ------------------------------------------------------------------------------
-  -- Test our recurring timer events
-  ------------------------------------------------------------------------------
-  let performDeltaSecondTimer n = do
-        evDelta  <- performEventDelta =<< tickLossyFromPostBuildTime n
-        dTicks   <- foldDyn (+) 0 $ (1 :: Int) <$ evDelta
-        dDelta   <- holdDyn 0 evDelta
-        dElapsed <- foldDyn (+) 0 evDelta
-        flip putDebugLnE id $ updated $ do
-          tickz <- dTicks
-          lapse <- dElapsed
-          delta <- dDelta
-          return $ unwords [ show n
-                           , "timer -"
-                           , show tickz
-                           , "ticks -"
-                           , show lapse
-                           , "lapsed -"
-                           , show delta
-                           , "delta since last tick"
-                           ]
-  performDeltaSecondTimer 1
+white = gray 255
+black = gray 0
 
-  ------------------------------------------------------------------------------
-  -- Quit on a quit event
-  ------------------------------------------------------------------------------
-  evQuit <- getQuitEvent
-  performEvent_ $ liftIO (putStrLn "bye!") <$ evQuit
-  shutdownOn =<< delay 0 evQuit
+--------------------------------------------------------------------------------
 
 
-app                  :: ReflexSDL2 t m
-                     => Renderer -> Texture -> m ()
-app renderer texture = do
-  (_, dynLayers) <- runDynamicWriterT guest
-  performEvent_ $ ffor (updated dynLayers) $ \layers -> do
-    clear renderer
-    liftIO . withCairoTexture' texture $ runCanvas $
-      sequence_ layers
-    copy renderer texture Nothing Nothing
-    present renderer
+
+
+
+
+
 
 main :: IO ()
 main = do
   initializeAll
-
-  -- window <- createWindow "cairo-canvas using SDL2" defaultWindow
-  -- renderer <- createRenderer window (-1) defaultRenderer
-  -- texture <- createCairoTexture' renderer window
-
   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
                          , windowResizable       = True
                          -- , windowHighDPI         = False
                          -- , windowInitialSize     = V2 640 480
                          }
-  window <- createWindow "convex hull" cfg
-  void $ glCreateContext window
-
-  putStrLn "creating renderer..."
-  renderer <- createRenderer window (-1) defaultRenderer
-  rendererDrawBlendMode renderer $= BlendAlphaBlend
-  texture <- createCairoTexture' renderer window
-
-  host $ app renderer texture
-  destroyRenderer renderer
-  destroyWindow window
+  withWindow "convex hull" cfg $ \window -> do
+    void $ glCreateContext window
+    withRenderer window (-1) defaultRenderer $ \renderer -> do
+      host $ reflexSdlApp window renderer reflexMain
   quit
-
 
 
 -- main :: IO ()
 -- main = do
 --   initializeAll
---   window <- createWindow "cairo-canvas using SDL2" defaultWindow
+--   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
+--       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
+--                          , windowResizable       = True
+--                          -- , windowHighDPI         = False
+--                          -- , windowInitialSize     = V2 640 480
+--                          }
+--   window <- createWindow "convex hull" cfg
+--   void $ glCreateContext window
+
+--   putStrLn "creating renderer..."
 --   renderer <- createRenderer window (-1) defaultRenderer
---   texture <- createCairoTexture' renderer window
 
---   withCairoTexture' texture $ runCanvas $ do
---     background $ gray 102
---     fill $ red 255 !@ 128
---     noStroke
---     rect $ D 200 200 100 100
---     stroke $ green 255 !@ 128
---     fill $ blue 255 !@ 128
---     rect $ D 250 250 100 100
---     triangle (V2 400 300) (V2 350 400) (V2 400 400)
+--   host $ reflexSdlApp window renderer reflexMain
 
---   copy renderer texture Nothing Nothing
---   present renderer
---   delay 5000
+--   destroyRenderer renderer
+--   destroyWindow window
+--   quit
