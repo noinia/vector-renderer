@@ -58,13 +58,15 @@ common my-default-extensions
 library
   import: my-default-extensions
   ghc-options: -O -Wall -fno-warn-unticked-promoted-constructors -fno-warn-type-defaults
-  exposed-modules: Data.Camera
-                   -- VectorRenderer.Main
-                   -- VectorRenderer.Import
-                   -- VectorRenderer.RenderCanvas
-                   -- VectorRenderer.RenderUtil
-                   VectorRenderer.ReflexSDLRenderer
-                   SDL.Util
+  exposed-modules:
+    Data.Camera
+    -- VectorRenderer.Main
+    -- VectorRenderer.Import
+    VectorRenderer.RenderCanvas
+    -- VectorRenderer.RenderUtil
+    VectorRenderer.ReflexSDLRenderer
+    SDL.Util
+    SDL.GeometryUtil
 
   hs-source-dirs: src
 
@@ -105,5 +107,7 @@ executable vector-renderer
                   , reflex-sdl2
                   , cairo-canvas
                   , sdl2-cairo
+
+                  , hgeometry-combinatorial
 
   hs-source-dirs:   app

@@ -1,16 +1,15 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module Main where
 
-
 import Control.Monad (forM_, guard, void)
--- import Control.Monad.Reader (MonadReader (..), runReaderT)
-import Graphics.Rendering.Cairo.Canvas hiding (withRenderer)
+import Data.Ext
+import Graphics.Rendering.Cairo.Canvas hiding (withRenderer, point)
 import Reflex
-import Reflex.SDL2
-
-
+import Reflex.SDL2 hiding (point)
+import SDL.GeometryUtil
 import SDL.Util
 import VectorRenderer.ReflexSDLRenderer
+import VectorRenderer.RenderCanvas
 
 --------------------------------------------------------------------------------
 
@@ -96,6 +95,11 @@ button = do
 
 --------------------------------------------------------------------------------
 
+-- data InOrOut a = Outside | Inside a
+
+
+
+
 
 -- | Main reflex app that can also render layers
 reflexMain :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)
@@ -113,31 +117,50 @@ reflexMain = do
   --------------------------------------------------------------------------------
   -- draw the points
 
-  evClicked <- getMouseButtonEvent
-  dPoints <- foldDyn (\dat pts -> let P pos = fromIntegral <$> mouseButtonEventPos dat
-                                  in pos : pts
-                     ) [] evClicked
-  drawLayer $ ffor dPoints $ \points -> mapM_ (renderAABB $ blue 255) $ reverse points
+  evClicked <- mouseClickEvent
+  dPoints <- foldDyn (\(p :+ _) pts -> p : pts) [] evClicked
+  drawLayer $ fmap (\points -> mapM_ point $ reverse points) dPoints
+
+
+  -- evClicked <- getMouseButtonEvent
+  -- dPoints <- foldDyn (\dat pts -> let P pos = fromIntegral <$> mouseButtonEventPos dat
+  --                                 in pos : pts
+  --                    ) [] evClicked
+  -- drawLayer $ ffor dPoints $ \points -> mapM_ (renderAABB $ blue 255) $ reverse points
 
 
 
-  ------------------------------------------------------------------------------
-  -- Ghosty trail of squares
-  ------------------------------------------------------------------------------
-  -- Gather all mouse motion events into a list, then draw a drawLayers that
-  -- renders each move as a quarter alpha'd yello or cyan square.
-  evMouseMove <- getMouseMotionEvent
+  -- ------------------------------------------------------------------------------
+  -- -- Ghosty trail of squares
+  -- ------------------------------------------------------------------------------
+  -- -- Gather all mouse motion events into a list, then draw a drawLayers that
+  -- -- renders each move as a quarter alpha'd yello or cyan square.
+  -- evMouseMove <- getMouseMotionEvent
+  -- -- I guess we still want to detect when we go outside of the screen again.
+  -- dMousePos <- holdDyn Nothing (Just <$> evMouseMove)
+  -- let dMousePosDrawing = ffor dMousePos $ \case
+  --       Nothing  -> pure () -- don't draw anything
+  --       Just dat -> let P pos = fromIntegral <$> mouseMotionEventPos dat
+  --                       color = if null (mouseMotionEventState dat)
+  --                               then V4 255 255 0   128
+  --                               else V4 0   255 255 128
+  --                   in renderAABB color pos
+  -- drawLayer dMousePosDrawing
 
-  -- I guess we still want to detect when we go outside of the screen again.
-  dMousePos <- holdDyn Nothing (Just <$> evMouseMove)
+
+  dMousePos <- mousePositionDyn
   let dMousePosDrawing = ffor dMousePos $ \case
-        Nothing  -> pure () -- don't draw anything
-        Just dat -> let P pos = fromIntegral <$> mouseMotionEventPos dat
-                        color = if null (mouseMotionEventState dat)
-                                then V4 255 255 0   128
-                                else V4 0   255 255 128
-                    in renderAABB color pos
+        Nothing         -> pure () -- don't draw anything
+        Just (p :+ dat) -> do let color = if null (mouseMotionEventState dat)
+                                          then V4 255 255 0   128
+                                          else V4 0   255 255 128
+                              fill color
+                              point p
   drawLayer dMousePosDrawing
+
+
+
+
 
   -- dMoves      <- foldDyn (\x _ -> Just x) Nothing evMouseMove
   -- dMoves      <- foldDyn (\x xs -> take 100 $ x : xs) [] evMouseMove
