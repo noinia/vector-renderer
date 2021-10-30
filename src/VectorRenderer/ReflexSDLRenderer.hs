@@ -14,12 +14,13 @@ import SDL.Cairo
 type Layer = Canvas ()
 
 -- | Runs a reflex app reflexMain' re-rendering the drawing when a
--- layer is written
-reflexSdlApp                             :: ReflexSDL2 t m
-                                         => Window -> Renderer
-                                         -> DynamicWriterT t [Layer] m ()
-                                         -> m ()
-reflexSdlApp window renderer reflexMain' = do
+-- layer is written.
+reflexSdlApp                                   :: ReflexSDL2 t m
+                                               => Window -> Renderer
+                                               -> Bool
+                                               -> DynamicWriterT t [Layer] m ()
+                                               -> m ()
+reflexSdlApp window renderer flipY reflexMain' = do
   texture <- liftIO $ createCairoTexture' renderer window
   -- get a dynamic representing the layers
   (_, dynLayers) <- runDynamicWriterT $ do reflexMain'
@@ -30,7 +31,7 @@ reflexSdlApp window renderer reflexMain' = do
     liftIO . withCairoTexture' texture $ runCanvas $ do
       background white
       sequence_ layers
-    copyEx renderer texture Nothing Nothing 0 Nothing (V2 False True)
+    copyEx renderer texture Nothing Nothing 0 Nothing (V2 False flipY)
     present renderer
 
 -- | Draw a layer stack that changes over time.

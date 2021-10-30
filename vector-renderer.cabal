@@ -60,13 +60,14 @@ library
   ghc-options: -O -Wall -fno-warn-unticked-promoted-constructors -fno-warn-type-defaults
   exposed-modules:
     Data.Camera
-    -- VectorRenderer.Main
+    VectorRenderer.Main
     -- VectorRenderer.Import
     VectorRenderer.RenderCanvas
     -- VectorRenderer.RenderUtil
     VectorRenderer.ReflexSDLRenderer
     SDL.Util
     SDL.GeometryUtil
+    VectorRenderer.ConvexHull
 
   hs-source-dirs: src
 
@@ -92,7 +93,7 @@ executable vector-renderer
   import: my-default-extensions
   ghc-options: -O -Wall -fno-warn-unticked-promoted-constructors -fno-warn-type-defaults
   main-is:
-    ConvexHull.hs
+    Main.hs
 
   -- Modules included in this executable, other than Main.
   -- other-modules:
@@ -100,15 +101,5 @@ executable vector-renderer
   -- other-extensions:
   build-depends:    base
                   , vector-renderer
-
-
-                  , mtl
-                  , reflex
-                  , reflex-sdl2
-                  , cairo-canvas
-                  , sdl2-cairo
-
-                  , hgeometry-combinatorial
-                  , hgeometry
 
   hs-source-dirs:   app

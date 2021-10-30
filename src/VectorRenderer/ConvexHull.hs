@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings     #-}
-module Main where
+module VectorRenderer.ConvexHull where
 
 
 import Control.Monad (guard, void)
@@ -38,7 +38,7 @@ button
   => m (Event t ButtonState)
 button = do
            let (rect :: Rectangle () Int) = box (ext $ Point2 0 0) (ext $ Point2 200 100)
-           dMousePos <- traceDyn "pos: " <$> mousePositionDyn @Int
+           dMousePos <- mousePositionDyn @Int
 
 
            dMouseIsInside <- holdDyn False ((\case
@@ -134,5 +134,5 @@ main = do
   withWindow "convex hull" cfg $ \window -> do
     void $ glCreateContext window
     withRenderer window (-1) defaultRenderer $ \renderer -> do
-      host $ reflexSdlApp window renderer reflexMain
+      host $ reflexSdlApp window renderer False reflexMain
   quit
