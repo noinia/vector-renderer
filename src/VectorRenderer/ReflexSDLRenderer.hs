@@ -30,7 +30,7 @@ reflexSdlApp window renderer reflexMain' = do
     liftIO . withCairoTexture' texture $ runCanvas $ do
       background white
       sequence_ layers
-    copy renderer texture Nothing Nothing
+    copyEx renderer texture Nothing Nothing 0 Nothing (V2 False True)
     present renderer
 
 -- | Draw a layer stack that changes over time.

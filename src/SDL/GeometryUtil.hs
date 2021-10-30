@@ -27,3 +27,8 @@ mouseClickEvent = fmap f <$> getMouseButtonEvent
   where
     f eventData = let P (V2 x y) = fromIntegral <$> mouseButtonEventPos eventData
                   in Point2 x y :+ eventData
+
+
+-- | Convert to a proper math coordinate system with the origin in the bottom left
+toMathCoords            :: Num r => r -> V2 r -> V2 r
+toMathCoords h (V2 x y) = V2 x (h - y)

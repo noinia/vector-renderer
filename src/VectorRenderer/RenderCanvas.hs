@@ -29,10 +29,10 @@ import           Linear.V4 (V4(..))
 --------------------------------------------------------------------------------
 
 
-colored     :: RealFrac r => (a -> Canvas b) -> (a :+ IpeColor r) -> Canvas b
+colored     :: RealFrac r => (a -> Canvas b) -> a :+ IpeColor r -> Canvas b
 colored f x = colored' f (x&extra %~ fromMaybe (Canvas.gray 255) . toCanvasColor)
 
-colored'            :: (a -> Canvas b) -> (a :+ Canvas.Color) -> Canvas b
+colored'            :: (a -> Canvas b) -> a :+ Canvas.Color -> Canvas b
 colored' f (x :+ c) = Canvas.fill c >> f x
 
 
