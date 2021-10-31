@@ -38,7 +38,7 @@ colored' f (x :+ c) = Canvas.fill c >> f x
 
 rectangle    :: (Real r, Ord r, Num r) => Rectangle p r -> Canvas ()
 rectangle r' = let r                                 = second realToFrac r'
-                   (Corners (Point2 x y :+ _) _ _ _) = corners r
+                   (Corners _ _ _ (Point2 x y :+ _)) = corners r
                in Canvas.rect $ Canvas.D x y (width r) (height r)
 
 polygon     :: Real r => SimplePolygon p r -> Canvas ()

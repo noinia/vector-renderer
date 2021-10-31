@@ -18,6 +18,8 @@ import Data.Geometry.Polygon.Convex
 import Data.Geometry.Point
 import Data.Intersection
 
+
+
 --------------------------------------------------------------------------------
 
 data ButtonState = ButtonStateUp
@@ -34,7 +36,7 @@ buttonState isInside isDown
 
 
 button
-  :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)
+  :: (ReflexSDL2Renderer t m r, RealFrac r)
   => m (Event t ButtonState)
 button = do
            let (rect :: Rectangle () Int) = box (ext $ Point2 0 0) (ext $ Point2 200 100)
@@ -81,7 +83,7 @@ button = do
 --------------------------------------------------------------------------------
 
 -- | Main reflex app that can also render layers
-reflexMain :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)
+reflexMain :: (ReflexSDL2Renderer t m Double)
            => m ()
 reflexMain = do
 
@@ -120,6 +122,12 @@ reflexMain = do
 
 blue = V4 0 0 255 128
 
+
+--------------------------------------------------------------------------------
+
+
+
+
 --------------------------------------------------------------------------------
 
 main :: IO ()
@@ -134,5 +142,5 @@ main = do
   withWindow "convex hull" cfg $ \window -> do
     void $ glCreateContext window
     withRenderer window (-1) defaultRenderer $ \renderer -> do
-      host $ reflexSdlApp window renderer False reflexMain
+      host $ reflexSdlApp window renderer reflexMain
   quit

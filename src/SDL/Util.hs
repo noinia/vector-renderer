@@ -3,10 +3,9 @@ module SDL.Util
   , withRenderer
   ) where
 
-import Reflex.SDL2
 import Data.Text
-import Foreign.C.Types(CInt)
-
+import Foreign.C.Types (CInt)
+import Reflex.SDL2
 --------------------------------------------------------------------------------
 
 -- | Creates a Window with the given title and config, runs the

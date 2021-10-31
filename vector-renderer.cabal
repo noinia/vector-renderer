@@ -61,13 +61,21 @@ library
   exposed-modules:
     Data.Camera
     VectorRenderer.Main
-    -- VectorRenderer.Import
+    VectorRenderer.Import
     VectorRenderer.RenderCanvas
     -- VectorRenderer.RenderUtil
     VectorRenderer.ReflexSDLRenderer
+
+    VectorRenderer.Viewport
+
+
     SDL.Util
     SDL.GeometryUtil
     VectorRenderer.ConvexHull
+
+
+    Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval
+
 
   hs-source-dirs: src
 
@@ -88,6 +96,11 @@ library
                     , text                    ^>= 1.2
                     , transformers            ^>= 0.5
                     , vinyl                   ^>= 0.13
+
+                    , vector
+
+                    , cairo
+
 
 executable vector-renderer
   import: my-default-extensions
