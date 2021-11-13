@@ -1,84 +1,43 @@
 {-# LANGUAGE OverloadedStrings     #-}
-module VectorRenderer.ConvexHull where
+module VectorRenderer.NestedViewport where
 
 
 import           Algorithms.Geometry.ConvexHull.GrahamScan
-import           Control.Monad (guard, void)
+import           Control.Monad (guard, void, replicateM)
 import           Data.Ext
 import           Data.Geometry.Box
 import           Data.Geometry.Point
 import           Data.Geometry.Polygon.Convex
 import           Data.Intersection
 import qualified Data.List.NonEmpty as NonEmpty
+import           Data.RealNumber.Rational
+import           Ipe.Color
 import           Reflex
 import           Reflex.SDL2 hiding (point, Rectangle, Point)
 import           SDL.GeometryUtil
 import           SDL.Util
+import           System.Random
 import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
-import           Ipe.Color
+--------------------------------------------------------------------------------
+
+type R = RealNumber 5
 
 --------------------------------------------------------------------------------
 
-data ButtonState = ButtonStateUp
-                 | ButtonStateOver
-                 | ButtonStateDown
-                 deriving Eq
+randomPoint :: IO (Point 2 R :+ ())
+randomPoint = (\x y -> ext . fmap realToFrac $ Point2 x y) <$> randomIO @Int <*> randomIO
 
-
-buttonState :: Bool -> Bool -> ButtonState
-buttonState isInside isDown
-  | not isInside = ButtonStateUp
-  | isDown       = ButtonStateDown
-  | otherwise    = ButtonStateOver
-
-
-button :: (ReflexSDL2Renderer t m r, RealFrac r)
-       => m (Event t ButtonState)
-button = do
-           let (rect :: Rectangle () Int) = box (ext $ Point2 0 0) (ext $ Point2 200 100)
-           dMousePos <- mousePositionDyn @Int
-
-           dMouseIsInside <- holdDyn False ((\case
-                                               Nothing -> False
-                                               Just (p :+ _) -> p `intersects` rect
-                                            ) <$> updated dMousePos)
-
-           evBtn <- mouseClickEvent
-           let evBtnIsDown = ffor evBtn $ (== Pressed) . mouseButtonEventMotion . _extra
-           dButtonIsDown <- holdDyn False evBtnIsDown
-
-           let dButtonStatePre = buttonState <$> dMouseIsInside <*> dButtonIsDown
-           evPB         <- getPostBuild
-           dButtonState <- holdDyn ButtonStateUp $ leftmost [ updated dButtonStatePre
-                                                            , ButtonStateUp <$ evPB
-                                                            ]
-           drawLayer $ ffor dButtonState $ \st ->
-             let color = case st of
-                           ButtonStateUp   -> V4 192 192 192 255
-                           ButtonStateOver -> 255
-                           ButtonStateDown -> V4 128 128 128 255
-             in colored' rectangle (rect :+ color)
-
-           updated <$> holdUniqDyn dButtonState
-
---------------------------------------------------------------------------------
 
 -- | Main reflex app that can also render layers
 reflexMain :: (ReflexSDL2Renderer t m Double) => m ()
 reflexMain = do
-
-               -- ------------------------------------------------------------------------------
-               -- -- A button!
-               -- ------------------------------------------------------------------------------
-               evBtnState <- button
-               let evBtnPressed = fmapMaybe (guard . (== ButtonStateDown)) evBtnState
-               performEvent_ $ ffor evBtnPressed $ const $ liftIO $ putStrLn "Button pressed!"
-
+               pts <- liftIO $ replicateM 10 randomPoint
 
                -- collect the points
 
-               dPoints <- foldDyn (:) [] =<< mouseClickEvent
+               -- dPoints <- foldDyn (:) [] =<< mouseClickEvent
+               let dPoints = constDyn pts
                let dHull = fmap (fmap convexHull . NonEmpty.nonEmpty) dPoints
 
 
@@ -100,7 +59,6 @@ reflexMain = do
                                                     else blue
                                         in colored point (p :+ color)
                drawLayer dMousePosDrawing
-
 
 
 --------------------------------------------------------------------------------

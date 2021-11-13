@@ -74,6 +74,8 @@ library
     VectorRenderer.ConvexHull
     VectorRenderer.SubdivViewer
 
+    VectorRenderer.NestedViewport
+
     Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval
 
 
@@ -98,6 +100,7 @@ library
                     , vinyl                   >= 0.13
                     , vector
                     , cairo
+                    , random
 
 
 executable vector-renderer
