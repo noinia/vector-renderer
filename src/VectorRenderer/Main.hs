@@ -3,16 +3,15 @@
 module VectorRenderer.Main where
 
 
-
-import           Control.Exception (catch)
-import           Control.Monad (guard, void)
+import           Control.Lens
+import           Control.Monad (void)
+import           Data.Bifunctor
 import           Data.Camera
+import           Data.Default
 import           Data.Ext
 import           Data.Geometry.Arrangement
-import           Data.Geometry.Arrangement.Draw
+import           Data.Geometry.PlanarSubdivision.Draw
 import           Data.Geometry.Box
-import           Data.Geometry.Ipe.Color (IpeColor(..))
-import qualified Data.Geometry.Ipe.Color as Ipe
 import           Data.Geometry.PlanarSubdivision
 import           Data.Geometry.Point
 import           Data.Geometry.Transformation
@@ -22,22 +21,27 @@ import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as T
 import           Graphics.Rendering.Cairo.Canvas (Canvas, (!@))
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
-import           Reflex
+import qualified Ipe.Color as Ipe
+import           Reflex hiding (Group)
 import           Reflex.SDL2 hiding (point, origin, Vector, Point, Rectangle)
 import           SDL.GeometryUtil
 import           SDL.Util
-import           VectorRenderer.Import
 import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
+import           VectorRenderer.Viewport
 -- import           VectorRenderer.Project
 import qualified VectorRenderer.RenderCanvas as Render
 import qualified Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval as HiddenSurfaceRemoval
 import           Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval (EdgeSide(..), Tri)
-
+import           Ipe
+import           Data.RealNumber.Rational
 import           Debug.Trace
-import           Data.Geometry.Ipe (IpeWriteText(..))
+
 
 --------------------------------------------------------------------------------
+
+type R = RealNumber 5
+
 -- myCamera :: Camera Rational
 -- myCamera = Camera origin
 --                   (Vector3 1 1 0)
@@ -76,13 +80,13 @@ myT = Triangle' origin (Point3 0 10 0) (Point3 10 10 0)
 
 
 myScene :: Scene Rational
-myScene = [myT :+ Ipe.red
-          , Triangle' origin
-                      (Point3 0 40 (-10))
-                      (Point3 0 0  (-10)) :+ Ipe.blue
-          , Triangle' (Point3 0 0 (-50))
-                      (Point3 0 40 (-10))
-                      (Point3 0 0  (-10)) :+ Ipe.green
+myScene = [ -- myT :+ Ipe.red
+          -- , Triangle' origin
+          --             (Point3 0 40 (-10))
+          --             (Point3 0 0  (-10)) :+ Ipe.blue
+          -- , Triangle' (Point3 0 0 (-50))
+          --             (Point3 0 40 (-10))
+          --             (Point3 0 0  (-10)) :+ Ipe.green
           ]
         ++ axes
         -- ++ cube
@@ -90,12 +94,12 @@ myScene = [myT :+ Ipe.red
 axes = [ Triangle' origin
                    (Point3 500 0 (-10))
                    (Point3 500 0 0) :+ Ipe.red
-       , Triangle' origin
-                   (Point3 0 500 (-10))
-                   (Point3 0 500 0) :+ Ipe.green
-       , Triangle' origin
-                   (Point3 0 (-10) 49)
-                   (Point3 0 0     49) :+ Ipe.blue
+       -- , Triangle' origin
+       --             (Point3 0 500 (-10))
+       --             (Point3 0 500 0) :+ Ipe.green
+       -- , Triangle' origin
+       --             (Point3 0 (-10) 49)
+       --             (Point3 0 0     49) :+ Ipe.blue
        ]
 
 -- myScene :: Scene Double
@@ -107,6 +111,20 @@ axes = [ Triangle' origin
 --                      (Point3 0   30  105) :+ Canvas.blue 255
 --           , myT :+ Canvas.rgb 200 0 200
 --           ] ++ cube
+
+
+triangulateSide          :: Num r => Rectangle p r :+ e -> [Triangle 2 p r :+ e]
+triangulateSide (r :+ e) = [ Triangle bl tr tl :+ e
+                           , Triangle bl tr br :+ e
+                           ]
+  where
+    Corners tl tr br bl = corners r
+
+-- | Lift a 2d triangle into R3
+lift3                    :: (Point 2 r -> Point 3 r) -> Triangle 2 p r -> Triangle 3 p r
+lift3 f (Triangle a b c) = Triangle (first f a) (first f b) (first f c)
+
+
 
 cube = concat [ mkBottom 0 (400,0) (500,100) (Canvas.red 200)
               , mkBottom 100 (400,0) (500,100) (Canvas.blue 255) -- top
@@ -148,11 +166,19 @@ cube = concat [ mkBottom 0 (400,0) (500,100) (Canvas.red 200)
 
 --------------------------------------------------------------------------------
 
+
 -- | Main reflex app that can also render layers
 reflexMain :: (ReflexSDL2Renderer t m Double)
            => m ()
 reflexMain = do
-               -- collect the points
+               -- the camera
+               let dCamera = constDyn def
+                   dScene  = constDyn myScene
+               dViewportSize <- fmap (^.viewPort.to size) <$> viewportDyn
+
+               drawLayer $ drawScene <$> dViewportSize <*> dCamera <*> dScene
+
+
 
                -- dPoints <- foldDyn (:) [] =<< mouseClickEvent
                -- let dHull = fmap (fmap convexHull . NonEmpty.nonEmpty) dPoints
@@ -211,11 +237,11 @@ shiftCamera k c = c&cameraPosition %~ (.+^ 2 *^ toDirection k)
 drawScene         :: (Fractional r, Real r, RealFrac r
                      , Show r, IpeWriteText r, Read r
                      )
-                  => Double -> Double
+                  => Vector 2 Double
                   -> Camera r
                   -> Scene r
                   -> Canvas ()
-drawScene w h c s = do
+drawScene (Vector2 w h) c s = do
           Canvas.background $ Canvas.gray 255
           Canvas.scale     $ V2 1 (-1)
           Canvas.translate $ V2 (w/2) (-1*h/2)
@@ -226,9 +252,18 @@ drawScene w h c s = do
           -- mapM_ (Render.colored Render.triangle) $ renderScene c s
           let arr' = renderAll c s
               arr = traceShow ("woei!",arr') arr'
-          Render.ipeOut drawColoredArrangement $ arr
+          Render.ipeOut drawColoredArrangement arr
 
+drawColoredArrangement :: (Num r, Ord r) => IpeOut (Arrangement s l v e (Maybe (IpeColor r)) r) Group r
+drawColoredArrangement = drawColoredPlanarSubdivision . view subdivision
 
+drawColoredPlanarSubdivision  ::  (Num r, Ord r) => IpeOut (PlanarSubdivision s v e (Maybe (IpeColor r)) r)
+                                          Group r
+drawColoredPlanarSubdivision ps = drawPlanarSubdivision
+    (ps&vertexData.traverse  ?~ mempty
+       &dartData.traverse._2 ?~ mempty
+       &faceData.traverse    %~ fmap (attr SFill)
+    )
 
 render (Triangle p q r) = Triangle (p&core %~ projectPoint)
                                    (q&core %~ projectPoint)

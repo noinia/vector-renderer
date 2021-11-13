@@ -4,10 +4,11 @@ module VectorRenderer.ReflexSDLRenderer
   , drawLayers, drawLayer
 
   , windowSizeDyn
+  , viewportDyn
   ) where
 
 import           Control.Lens ((^.), view)
-import           Control.Monad.Reader (ReaderT, runReaderT)
+import           Control.Monad.Reader (ReaderT, runReaderT, MonadReader, ask)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Geometry.Matrix
 import           Data.Geometry.Transformation
@@ -46,7 +47,10 @@ windowSizeDyn window = do initSize <- getWindowSize window
                                   ) initSize =<< getWindowSizeChangedEvent
 
 
-
+-- | Get the viewport
+viewportDyn :: (ReflexSDL2 t m, MonadReader (Dynamic t (Viewport r)) m)
+            => m (Dynamic t (Viewport r))
+viewportDyn = ask
 
 -- | Runs a reflex app reflexMain' re-rendering the drawing when a
 -- layer is written.

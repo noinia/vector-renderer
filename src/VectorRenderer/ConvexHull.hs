@@ -2,23 +2,20 @@
 module VectorRenderer.ConvexHull where
 
 
-import Control.Monad (guard, void)
-import Data.Ext
-import Reflex
-import Reflex.SDL2 hiding (point, Rectangle)
-import SDL.GeometryUtil
-import SDL.Util
-import VectorRenderer.ReflexSDLRenderer
-import VectorRenderer.RenderCanvas
-import qualified Data.List.NonEmpty as NonEmpty
-import Algorithms.Geometry.ConvexHull.GrahamScan
+import           Algorithms.Geometry.ConvexHull.GrahamScan
+import           Control.Monad (guard, void)
+import           Data.Ext
 import           Data.Geometry.Box
-
-import Data.Geometry.Polygon.Convex
-import Data.Geometry.Point
-import Data.Intersection
-
-
+import           Data.Geometry.Point
+import           Data.Geometry.Polygon.Convex
+import           Data.Intersection
+import qualified Data.List.NonEmpty as NonEmpty
+import           Reflex
+import           Reflex.SDL2 hiding (point, Rectangle)
+import           SDL.GeometryUtil
+import           SDL.Util
+import           VectorRenderer.ReflexSDLRenderer
+import           VectorRenderer.RenderCanvas
 
 --------------------------------------------------------------------------------
 
@@ -35,32 +32,16 @@ buttonState isInside isDown
   | otherwise    = ButtonStateOver
 
 
-button
-  :: (ReflexSDL2Renderer t m r, RealFrac r)
-  => m (Event t ButtonState)
+button :: (ReflexSDL2Renderer t m r, RealFrac r)
+       => m (Event t ButtonState)
 button = do
            let (rect :: Rectangle () Int) = box (ext $ Point2 0 0) (ext $ Point2 200 100)
            dMousePos <- mousePositionDyn @Int
-
 
            dMouseIsInside <- holdDyn False ((\case
                                                Nothing -> False
                                                Just (p :+ _) -> p `intersects` rect
                                             ) <$> updated dMousePos)
-
-
-         -- evMotionData <- getMouseMotionEvent
-
-
-         --   let position = V2 100 100
-         --       size     = V2 100 100
-         --       V2 tlx tly = position
-         --       V2 brx bry = position + size
-         --       evMotionPos = fmap fromIntegral . mouseMotionEventPos <$> evMotionData
-         --       evMouseIsInside = ffor evMotionPos $ \(P (V2 x y)) ->
-         --         (x >= tlx && x <= brx) && (y >= tly && y <= bry)
-         --   dMouseIsInside <- holdDyn False evMouseIsInside
-
 
            evBtn <- mouseClickEvent
            let evBtnIsDown = ffor evBtn $ (== Pressed) . mouseButtonEventMotion . _extra
@@ -83,8 +64,7 @@ button = do
 --------------------------------------------------------------------------------
 
 -- | Main reflex app that can also render layers
-reflexMain :: (ReflexSDL2Renderer t m Double)
-           => m ()
+reflexMain :: (ReflexSDL2Renderer t m Double) => m ()
 reflexMain = do
 
                -- ------------------------------------------------------------------------------

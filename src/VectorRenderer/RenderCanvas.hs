@@ -8,12 +8,6 @@ import           Data.Colour.SRGB (RGB(..), toSRGB24)
 import           Data.Ext
 import           Data.Geometry
 import           Data.Geometry.Box
-import           Data.Geometry.Ipe.Attributes
-import qualified Data.Geometry.Ipe.Attributes as A
-import           Data.Geometry.Ipe.Color
-import           Data.Geometry.Ipe.IpeOut (IpeOut,iO)
-import           Data.Geometry.Ipe.Types hiding (ipeObject', width)
-import           Data.Geometry.Ipe.Value
 import           Data.Geometry.Triangle
 import           Data.Geometry.Vector.VectorFamilyPeano
 import           Data.Maybe (fromMaybe)
@@ -23,6 +17,12 @@ import           Data.Vinyl
 import           Data.Vinyl.TypeLevel
 import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
+import           Ipe.Attributes
+import qualified Ipe.Attributes as A
+import           Ipe.Color
+import           Ipe.IpeOut (IpeOut,iO)
+import           Ipe.Types hiding (ipeObject', width)
+import           Ipe.Value
 import           Linear.V2 (V2)
 import           Linear.V4 (V4(..))
 
@@ -182,6 +182,9 @@ instance ApplyAttr Arrow where
   applyAttribute _ = pure ()
 
 instance ApplyAttr RArrow where
+  applyAttribute _ = pure ()
+
+instance ApplyAttr StrokeOpacity where
   applyAttribute _ = pure ()
 
 instance ApplyAttr Opacity where
