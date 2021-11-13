@@ -2,6 +2,7 @@
 module VectorRenderer.RenderCanvas where
 
 import           Control.Lens
+import           Control.Monad (void)
 import           Data.Bifunctor
 import           Data.Colour.Names (readColourName)
 import           Data.Colour.SRGB (RGB(..), toSRGB24)
@@ -12,11 +13,12 @@ import           Data.Geometry.Triangle
 import           Data.Geometry.Vector.VectorFamilyPeano
 import           Data.Maybe (fromMaybe)
 import           Data.Proxy
-import qualified Data.Text as T
+import qualified Data.Text as Text
 import           Data.Vinyl
 import           Data.Vinyl.TypeLevel
 import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
+import qualified Ipe
 import           Ipe.Attributes
 import qualified Ipe.Attributes as A
 import           Ipe.Color
@@ -85,6 +87,8 @@ ipeGroup :: RealFrac r => Group r -> Canvas ()
 ipeGroup = mapM_ ipeObject . view groupItems
 
 
+ipeTextLabel                 :: Real r => TextLabel r -> Canvas ()
+ipeTextLabel (Ipe.Label t p) = void $ Canvas.text (Text.unpack t) (realToFrac <$> p^.toV2')
 
 ipeObject'              :: forall g r. (RealFrac r, AllConstrained ApplyAttr (AttributesOf g))
                         => (g r -> Canvas ())
@@ -100,7 +104,7 @@ ipeObject                  :: RealFrac r
                            => IpeObject r -> Canvas ()
 ipeObject (IpeGroup g)     = ipeObject' ipeGroup g
 ipeObject (IpeImage _)     = undefined
-ipeObject (IpeTextLabel _) = undefined
+ipeObject (IpeTextLabel t) = ipeObject' ipeTextLabel t
 ipeObject (IpeMiniPage _)  = undefined
 ipeObject (IpeUse p)       = ipeObject' ipeUse  p
 ipeObject (IpePath p)      = ipeObject' ipePath p
@@ -206,7 +210,7 @@ instance ApplyAttr Transformations where
 -- | Looks up the colorname in the SVG colors if it is a name.
 toCanvasColor :: RealFrac r => IpeColor r -> Maybe Canvas.Color
 toCanvasColor (IpeColor c) = case c of
-    Named t            -> h . toSRGB24 <$> readColourName (T.unpack $ T.toLower t)
+    Named t            -> h . toSRGB24 <$> readColourName (Text.unpack $ Text.toLower t)
     Valued v           -> Just $ f v
   where
     f (RGB r g b) = floor <$> V4 (255 *r) (255*g) (255*b) 255

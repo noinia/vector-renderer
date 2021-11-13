@@ -34,7 +34,7 @@ fromV2 = MKVector . VectorFamily
 
 -- | get the current size of the window.
 getWindowSize        :: (Num r, MonadIO m) => Window -> m (Vector 2 r)
-getWindowSize window = (fmap fromIntegral . fromV2) <$> get (windowSize window)
+getWindowSize window = fmap fromIntegral . fromV2 <$> get (windowSize window)
 
 
 -- | A dynamic that keeps track of the size of the given window.
@@ -109,9 +109,22 @@ toCairoMatrix (Matrix (Vector3
                        (Vector3 d e f)
                        _)              ) = CairoMatrix.Matrix a b d e c f
 
+
+withFontTransform      :: Real r => Transformation 2 r -> Canvas () -> Canvas ()
+withFontTransform t act = let m = toCairoMatrix . view transformationMatrix . fmap realToFrac $ t
+                          in withFontMatrix m act
+
 --------------------------------------------------------------------------------
 -- Move to cairo-canvas
 
 -- | Apply a given transformation
 applyMatrix :: CairoMatrix.Matrix -> Canvas ()
 applyMatrix = lift . C.transform
+
+
+-- | Run a computation with a font matrix
+withFontMatrix       :: CairoMatrix.Matrix -> Canvas () -> Canvas ()
+withFontMatrix m act = do origMatrix <- lift C.getFontMatrix
+                          lift $ C.setFontMatrix m
+                          act
+                          lift $ C.setFontMatrix origMatrix
