@@ -60,6 +60,7 @@ triangle t' = let (Triangle p q r) = second realToFrac t' in
 toV2' :: Getter (Point 2 r) (V2 r)
 toV2' = vector.unV.to (\(VectorFamily v2) -> v2)
 
+
 -- | draw a point as a small disk
 point   :: Real r => Point 2 r -> Canvas ()
 point p = Canvas.circle' (realToFrac <$> (p^.toV2')) 5
