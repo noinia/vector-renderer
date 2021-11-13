@@ -10,7 +10,7 @@ import           Data.Camera
 import           Data.Default
 import           Data.Ext
 import           Data.Geometry.Arrangement
-import           Data.Geometry.Box
+import           Data.Geometry.Box(Rectangle, box, size)
 import           Data.Geometry.LineSegment
 import           Data.Geometry.Polygon hiding (size)
 import           Data.Geometry.PlanarSubdivision
@@ -44,33 +44,8 @@ import           Debug.Trace
 
 type R = RealNumber 5
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-myCamera :: Camera Rational
-myCamera = Camera (Point3 (-30) (-20) 20)
-                  (Vector3 0 0 (-1))
-                  (Vector3 0 1 0)
-                  10
-                  15
-                  55
-                  (Vector2 1024 768)
-
 type Scene r = [Triangle 3 () r :+ IpeColor r]
+
 
 
 mkBottom :: r -> (r,r) -> (r,r) -> c -> [Triangle 3 () r :+ c]
@@ -82,106 +57,77 @@ mkBottom z (lx, ly) (rx, ry) c = [ Triangle' (Point3 lx ly z)
                                              (Point3 rx ly z) :+ c
                                  ]
 
+myT :: Triangle 3 () Rational
+myT = Triangle (ext $ Point3 1  1  10)
+               (ext $ Point3 20 1  10)
+               (ext $ Point3 20 30 10)
 
 
+-- FIXME 20 causes zero error
+topSide z = [ Triangle' (Point3 0   0 z)
+                        (Point3 17  0 z)
+                        (Point3 17 17 z) :+ purple
+            , Triangle' (Point3 0   0 z)
+                        (Point3 0  17 z)
+                        (Point3 17 17 z) :+ purple
+            ]
 
-xSide :: [Triangle 3 p r :+ c] -> [Triangle 3 p r :+ c]
-xSide = map (\(t :+ c) -> pmap toX t :+ c)
-  where
-    toX (Point3 x y z) = Point3 z y x
+leftSide x = [ Triangle' (Point3 x 0   0)
+                         (Point3 x 17  0)
+                         (Point3 x 17 17) :+ navy
+             , Triangle' (Point3 x 0   0)
+                         (Point3 x 0  17)
+                         (Point3 x 17 17) :+ navy
+             ]
 
-ySide :: [Triangle 3 p r :+ c] -> [Triangle 3 p r :+ c]
-ySide = map (\(t :+ c) -> pmap toY t :+ c)
-  where
-    toY (Point3 x y z) = Point3 x z y
-
-myT = Triangle' origin (Point3 0 10 0) (Point3 10 10 0)
-
+cube = topSide 17 <> topSide 0 <> leftSide 0 <> leftSide 23
 
 myScene :: Scene Rational
-myScene = [ myT :+ red
+myScene = [ myT :+ seagreen
           -- , Triangle' origin
           --             (Point3 0 40 (-10))
-          --             (Point3 0 0  (-10)) :+ Ipe.blue
+          --             (Point3 0 0  (-10)) :+ purple
           -- , Triangle' (Point3 0 0 (-50))
           --             (Point3 0 40 (-10))
-          --             (Point3 0 0  (-10)) :+ Ipe.green
-          ]
+          --             (Point3 0 0  (-10)) :+ navy
+          ] <> cube
         ++ axes
         -- ++ cube
 
 axes = [ Triangle' origin
                    (Point3 500 0 (-10))
                    (Point3 500 0 0) :+ red
-       -- , Triangle' origin
-       --             (Point3 0 500 (-10))
-       --             (Point3 0 500 0) :+ Ipe.green
-       -- , Triangle' origin
-       --             (Point3 0 (-10) 49)
-       --             (Point3 0 0     49) :+ Ipe.blue
+       , Triangle' origin
+                   (Point3 0 500 (-10))
+                   (Point3 0 500 0) :+ green
+       , Triangle' origin
+                   (Point3 0 (-10) 49)
+                   (Point3 0 0     49) :+ blue
        ]
 
--- myScene :: Scene Double
--- myScene = [ triangle (Point3 100 100 100)
---                      (Point3 20   10 100)
---                      (Point3 50   0 100) :+ Canvas.red 255
---           , triangle (Point3 70 350 110)
---                      (Point3 300 200 150)
---                      (Point3 0   30  105) :+ Canvas.blue 255
---           , myT :+ Canvas.rgb 200 0 200
---           ] ++ cube
+
+----------------------------------------
+
+myCamera :: Camera Rational
+myCamera = Camera (Point3 (-30) (-20) 20)
+                  (Vector3 0 0 (-1))
+                  (Vector3 0 1 0)
+                  10
+                  15
+                  55
+                  (Vector2 980 800)
 
 
-triangulateSide          :: Num r => Rectangle p r :+ e -> [Triangle 2 p r :+ e]
-triangulateSide (r :+ e) = [ Triangle bl tr tl :+ e
-                           , Triangle bl tr br :+ e
-                           ]
-  where
-    Corners tl tr br bl = corners r
+-- triangulateSide          :: Num r => Rectangle p r :+ e -> [Triangle 2 p r :+ e]
+-- triangulateSide (r :+ e) = [ Triangle bl tr tl :+ e
+--                            , Triangle bl tr br :+ e
+--                            ]
+--   where
+--     Corners tl tr br bl = corners r
 
 -- | Lift a 2d triangle into R3
 lift3                    :: (Point 2 r -> Point 3 r) -> Triangle 2 p r -> Triangle 3 p r
 lift3 f (Triangle a b c) = Triangle (first f a) (first f b) (first f c)
-
-
-
-cube = concat [ mkBottom 0 (400,0) (500,100) (Canvas.red 200)
-              , mkBottom 100 (400,0) (500,100) (Canvas.blue 255) -- top
-              -- , [triangle (Point3 400 0 0)
-              --            (Point3 400 100 0)
-              --            (Point3 400 100 100) :+ Canvas.green 100]
-              , xSide $ mkBottom 400 (0,0) (100,100) (Canvas.green 255 !@ 100) -- front
-              , xSide $ mkBottom 500 (0,0) (100,100) (Canvas.green 255 !@ 100) -- back
-              -- , ySide $ mkBottom 0   (0,0) (100,100) (Canvas.red 200)
-              -- , ySide $ mkBottom 100 (0,0) (100,100) (Canvas.red 255)
-              ]
-
---           -- the triangles below form part of a a cube
---           , triangle (Point3 400 0 10)
---                      (Point3 500 0 10)
---                      (Point3 400 0 110) :+ Canvas.green 255
---           , triangle (Point3 400 0 110)
---                      (Point3 500 0 110)
---                      (Point3 500 0 10) :+ Canvas.green 255
-
---           , triangle (Point3 400 100 10)
---                      (Point3 500 100 10)
---                      (Point3 400 100 110) :+ Canvas.green 255
---           , triangle (Point3 400 100 110)
---                      (Point3 500 100 110)
---                      (Point3 500 100 10) :+ Canvas.green 255
-
-
-
-
-
---           , triangle (Point3 400 0   10)
---                      (Point3 400 100 10)
---                      (Point3 400 100 110) :+ Canvas.blue 255
---           , triangle (Point3 400 0   110)
---                      (Point3 400 100 110)
---                      (Point3 400 100 10) :+ Canvas.blue 255
---           ]
 
 --------------------------------------------------------------------------------
 
