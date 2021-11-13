@@ -10,18 +10,20 @@ import           Data.Camera
 import           Data.Default
 import           Data.Ext
 import           Data.Geometry.Arrangement
-import           Data.Geometry.PlanarSubdivision.Draw
 import           Data.Geometry.Box
+import           Data.Geometry.LineSegment
+import           Data.Geometry.Polygon hiding (size)
 import           Data.Geometry.PlanarSubdivision
+import           Data.Geometry.PlanarSubdivision.Draw
 import           Data.Geometry.Point
 import           Data.Geometry.Transformation
 import           Data.Geometry.Triangle
 import           Data.Geometry.Vector
 import qualified Data.List.NonEmpty as NonEmpty
-import qualified Data.Text as T
+import qualified Data.Text as Text
 import           Graphics.Rendering.Cairo.Canvas (Canvas, (!@))
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
-import qualified Ipe.Color as Ipe
+import           Ipe.Color
 import           Reflex hiding (Group)
 import           Reflex.SDL2 hiding (point, origin, Vector, Point, Rectangle)
 import           SDL.GeometryUtil
@@ -42,14 +44,31 @@ import           Debug.Trace
 
 type R = RealNumber 5
 
--- myCamera :: Camera Rational
--- myCamera = Camera origin
---                   (Vector3 1 1 0)
---                   (Vector3 0 0 1)
---                   100
---                   20
---                   30
---                   (Vector2 800 600)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+myCamera :: Camera Rational
+myCamera = Camera (Point3 (-30) (-20) 20)
+                  (Vector3 0 0 (-1))
+                  (Vector3 0 1 0)
+                  10
+                  15
+                  55
+                  (Vector2 1024 768)
 
 type Scene r = [Triangle 3 () r :+ IpeColor r]
 
@@ -80,7 +99,7 @@ myT = Triangle' origin (Point3 0 10 0) (Point3 10 10 0)
 
 
 myScene :: Scene Rational
-myScene = [ -- myT :+ Ipe.red
+myScene = [ myT :+ red
           -- , Triangle' origin
           --             (Point3 0 40 (-10))
           --             (Point3 0 0  (-10)) :+ Ipe.blue
@@ -93,7 +112,7 @@ myScene = [ -- myT :+ Ipe.red
 
 axes = [ Triangle' origin
                    (Point3 500 0 (-10))
-                   (Point3 500 0 0) :+ Ipe.red
+                   (Point3 500 0 0) :+ red
        -- , Triangle' origin
        --             (Point3 0 500 (-10))
        --             (Point3 0 500 0) :+ Ipe.green
@@ -176,6 +195,7 @@ reflexMain = do
                    dScene  = constDyn myScene
                dViewportSize <- fmap (^.viewPort.to size) <$> viewportDyn
 
+               liftIO $ print "woei"
                drawLayer $ drawScene <$> dViewportSize <*> dCamera <*> dScene
 
 
@@ -198,12 +218,11 @@ reflexMain = do
                let dMousePosDrawing = ffor dMousePos $ \case
                      Nothing         -> pure () -- don't draw anything
                      Just (p :+ dat) -> let color = if null (mouseMotionEventState dat)
-                                                    then V4 255 255 0   128
-                                                    else V4 0   255 255 128
-                                        in colored' point (p :+ color)
+                                                    then black
+                                                    else blue
+                                        in colored point (p :+ color)
                drawLayer dMousePosDrawing
 
-blue = V4 0 0 255 128
 
 --------------------------------------------------------------------------------
 
@@ -242,29 +261,19 @@ drawScene         :: (Fractional r, Real r, RealFrac r
                   -> Scene r
                   -> Canvas ()
 drawScene (Vector2 w h) c s = do
-          Canvas.background $ Canvas.gray 255
-          Canvas.scale     $ V2 1 (-1)
+          Canvas.scale     $ traceShowId $ V2 1 (-1)
           Canvas.translate $ V2 (w/2) (-1*h/2)
           let Vector2 cw ch = realToFrac <$> c^.screenDimensions
           Canvas.scale     $ V2 (w/cw) (h/ch)
           Canvas.stroke $ Canvas.gray 0
-          -- mapM_ (Render.colored Render.triangle . project c) s
+          -- mapM_ (Render.colored Render.triangle . project c) $ Prelude.head s
           -- mapM_ (Render.colored Render.triangle) $ renderScene c s
           let arr' = renderAll c s
-              arr = traceShow ("woei!",arr') arr'
+              arr = traceShow ("arr!",arr') arr'
           Render.ipeOut drawColoredArrangement arr
 
-drawColoredArrangement :: (Num r, Ord r) => IpeOut (Arrangement s l v e (Maybe (IpeColor r)) r) Group r
-drawColoredArrangement = drawColoredPlanarSubdivision . view subdivision
 
-drawColoredPlanarSubdivision  ::  (Num r, Ord r) => IpeOut (PlanarSubdivision s v e (Maybe (IpeColor r)) r)
-                                          Group r
-drawColoredPlanarSubdivision ps = drawPlanarSubdivision
-    (ps&vertexData.traverse  ?~ mempty
-       &dartData.traverse._2 ?~ mempty
-       &faceData.traverse    %~ fmap (attr SFill)
-    )
-
+render                  :: Triangle 3 p r -> Triangle 2 p r
 render (Triangle p q r) = Triangle (p&core %~ projectPoint)
                                    (q&core %~ projectPoint)
                                    (r&core %~ projectPoint)
@@ -300,12 +309,12 @@ renderAll      :: forall r. (Ord r, Fractional r, RealFrac r
                               r
 renderAll c s = arr&subdivision.faceData %~ fmap mkColor
   where
-    arr = HiddenSurfaceRemoval.render (Identity Screen) (c^.cameraPosition) rect ts
+    arr = HiddenSurfaceRemoval.render (Identity Screen) (c^.cameraPosition) rect' ts
     ts = renderScene' c s
     -- ts = HiddenSurfaceRemoval.scene
     mkColor = fmap (^.extra.extra)
-    rect :: Rectangle () r
-    rect = box (ext origin) (ext . Point $ c^.screenDimensions)
+    rect' :: Rectangle () r
+    rect' = box (ext origin) (ext . Point $ c^.screenDimensions)
 
 
 
@@ -328,7 +337,7 @@ centerScaleViewport c w h d = do let Vector2 cw ch = realToFrac <$> c^.screenDim
 
 data ArrowKey = UpKey | DownKey | LeftKey | RightKey deriving (Show,Read,Eq,Bounded,Enum)
 
-toArrowKey         :: T.Text -> Maybe ArrowKey
+toArrowKey         :: Text.Text -> Maybe ArrowKey
 toArrowKey "Up"    = Just UpKey
 toArrowKey "Down"  = Just DownKey
 toArrowKey "Left"  = Just LeftKey
@@ -346,3 +355,41 @@ toDirection RightKey = Vector3 1    0    0
 -- toDir       :: Num r => Camera r -> T.Text -> Maybe (Vector 3 r)
 -- toDir c "w" = Just $ c^.cameraNormal
 -- toDir c "a" = Just $ c^.
+
+
+--------------------------------------------------------------------------------
+
+drawColoredArrangement :: (Num r, Ord r)
+                       => IpeOut (Arrangement s l v e (Maybe (IpeColor r)) r) Group r
+drawColoredArrangement = drawColoredPlanarSubdivision . view subdivision
+
+drawColoredPlanarSubdivision    :: (Num r, Ord r)
+                                => IpeOut (PlanarSubdivision s v e (Maybe (IpeColor r)) r)
+                                          Group r
+drawColoredPlanarSubdivision ps = drawPlanarSubdivisionWith drawVtx
+                                                            drawEdge
+                                                            drawInternalFace
+                                                            drawOuterFace
+                                                            ps
+
+
+-- | Draw vertices using their default representation; disk marks. For
+-- the rest we keep their original attributes.
+drawVtx                       :: IpeOut' Maybe (VertexId' s, VertexData r v) IpeSymbol r
+drawVtx (_vi, VertexData p _) = Just $ defIO p ! attr SFill black
+
+-- | Draw edges using normal line segments
+drawEdge              :: IpeOut' Maybe (Dart s,      LineSegment 2 v r :+ e)  Path r
+drawEdge (_d, s :+ _) = Just $ defIO s
+
+-- | Internal faces are filled polygons.
+drawInternalFace :: IpeOut' Maybe (FaceId' s,   SomePolygon v' r :+ Maybe (IpeColor r))    Path r
+drawInternalFace (_, pg :+ mcolor) = (\color -> defIO pg ! attr SFill color) <$> mcolor
+
+
+showT :: Show a => a -> Text.Text
+showT = Text.pack . show
+
+-- | Draw the outer face (in some box)
+drawOuterFace :: (Ord r, Num r) => IpeOut' Maybe (FaceId' s,   MultiPolygon (Maybe v) r :+ f) Path r
+drawOuterFace (_, _ :+ _) = Nothing

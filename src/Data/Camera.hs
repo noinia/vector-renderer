@@ -32,7 +32,7 @@ import Data.Default
 
 
 instance Fractional r => Default (Camera r) where
-  def = Camera origin
+  def = Camera (Point3 50 0 50)
                (Vector3 0 0 (-1))
                (Vector3 0 1 0)
                (1/10) -- pick vp dist to be the same as the camera dist
