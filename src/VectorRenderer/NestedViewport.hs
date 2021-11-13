@@ -1,16 +1,12 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module VectorRenderer.NestedViewport where
 
-
-import           Algorithms.Geometry.ConvexHull.GrahamScan
 import           Control.Lens
-import           Control.Monad (guard, void, replicateM)
+import           Control.Monad (void)
 import           Data.Ext
 import           Data.Geometry.Box
 import           Data.Geometry.Point
-
 import           Data.Geometry.Transformation
-import qualified Data.List.NonEmpty as NonEmpty
 import           Data.RealNumber.Rational
 import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import           Ipe.Color
@@ -24,6 +20,7 @@ import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
 import           VectorRenderer.Viewport
 
+import Debug.Trace
 --------------------------------------------------------------------------------
 
 type R = RealNumber 5
@@ -39,27 +36,13 @@ randomPoint = (\x y -> ext . fmap realToFrac $ Point2 x y)
 -- | Main reflex app that can also render layers
 reflexMain :: (ReflexSDL2Renderer t m Double) => m ()
 reflexMain = do
-               pts <- liftIO $ replicateM 10 randomPoint
-
-               -- collect the points
-
-               -- dPoints <- foldDyn (:) [] =<< mouseClickEvent
-               let dPoints = constDyn pts
-               let dHull = fmap (fmap convexHull . NonEmpty.nonEmpty) dPoints
-
-               -- -- draw the hull
-               -- drawLayer $ ffor dHull $ \case
-               --   Nothing -> pure ()
-               --   Just h  -> colored (polygon . _simplePolygon) (h :+ blue)
-
-               -- draw the points
-               drawLayer $ fmap (mapM_ (point . _core) . reverse) dPoints
-
+               drawLayer . pure $ ipeObject . iO $ defIO (Point2 0 0) ! attr SStroke black
                let r = box (ext $ Point2 10 10) (ext $ Point2 200 300)
-               -- drawLayer . pure $ ipeObject . iO $ defIO r ! attr SFill red
+               drawLayer . pure $ ipeObject . iO $ defIO r ! attr SFill red
 
-               drawLayer . pure . drawInViewport myViewport $
-                 ipeObject . iO $ defIO r ! attr SFill red
+               drawLayer . pure . drawInViewport myViewport $ do
+                 ipeObject . iO $ defIO (traceShowId $ Point2 0 0) ! attr SStroke blue
+                 ipeObject . iO $ defIO r ! attr SStroke blue
 
                -- show a point at the mouse pos
                dMousePos <- mousePositionDyn
@@ -71,12 +54,10 @@ reflexMain = do
                                         in colored point (p :+ color)
                drawLayer dMousePosDrawing
 
-
-
 -- | Viewport in which everything is rotated 90 deg.
 myViewport :: Viewport Double
-myViewport = Viewport (box (ext $ Point2 100 100) (ext $ Point2 500 500))
-                      (rotation 90)
+myViewport = mkViewport (box (ext $ Point2 100 100) (ext $ Point2 500 500))
+                        (rotation $ pi / 2 )
 
 -- | Draws the content in the viewport
 drawViewport          :: RealFrac r => Viewport r -> Canvas ()

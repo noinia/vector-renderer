@@ -3,12 +3,14 @@ module VectorRenderer.RenderCanvas where
 
 import           Control.Lens
 import           Control.Monad (void)
+import           Control.Monad.Trans.Class (lift)
 import           Data.Bifunctor
 import           Data.Colour.Names (readColourName)
 import           Data.Colour.SRGB (RGB(..), toSRGB24)
 import           Data.Ext
 import           Data.Geometry
 import           Data.Geometry.Box
+import           Data.Geometry.Matrix
 import           Data.Geometry.Triangle
 import           Data.Geometry.Vector.VectorFamilyPeano
 import           Data.Maybe (fromMaybe)
@@ -16,11 +18,13 @@ import           Data.Proxy
 import qualified Data.Text as Text
 import           Data.Vinyl
 import           Data.Vinyl.TypeLevel
+import qualified Graphics.Rendering.Cairo as Cairo
 import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
+import qualified Graphics.Rendering.Cairo.Matrix as CairoMatrix
 import qualified Ipe
-import           Ipe.Attributes
 import qualified Ipe.Attributes as A
+import           Ipe.Attributes hiding (Matrix)
 import           Ipe.Color
 import           Ipe.IpeOut (IpeOut,iO)
 import           Ipe.Types hiding (ipeObject', width)
@@ -67,7 +71,10 @@ toV2' = vector.unV.to (\(VectorFamily v2) -> v2)
 
 -- | draw a point as a small disk
 point   :: Real r => Point 2 r -> Canvas ()
-point p = Canvas.circle' (realToFrac <$> (p^.toV2')) 5
+point p = do Canvas.getStroke >>= \case
+               Nothing -> pure ()
+               Just c  -> Canvas.fill c
+             Canvas.circle' (realToFrac <$> (p^.toV2')) 5
 
 -- | draw as a point
 point'   :: Real r => Point 2 r -> Canvas ()
@@ -80,7 +87,7 @@ pathSegment _                   = error "pathSegment: Not implemented yet"
 
 
 ipeUse              :: Real r => IpeSymbol r -> Canvas ()
-ipeUse (Symbol p _) = Canvas.circle' (realToFrac <$> p^.toV2') 10
+ipeUse (Symbol p _) = point p --- Canvas.circle' (realToFrac <$> p^.toV2') 10
 
 ipePath          :: Real r => Path r -> Canvas ()
 ipePath (Path p) = mapM_ pathSegment p
@@ -98,6 +105,8 @@ ipeObject'              :: forall g r. (RealFrac r, AllConstrained ApplyAttr (At
                         -> Canvas ()
 ipeObject' f (i :+ ats) = do
                             Canvas.pushMatrix
+                            Canvas.noFill
+                            Canvas.noStroke
                             applyAttributes (Proxy :: Proxy g) ats
                             f i
                             Canvas.popMatrix
@@ -217,3 +226,40 @@ toCanvasColor (IpeColor c) = case c of
   where
     f (RGB r g b) = floor <$> V4 (255 *r) (255*g) (255*b) 255
     h (RGB r g b) = V4 r g b 255
+
+
+withTransformation       :: Real r => Transformation 2 r -> Canvas () -> Canvas ()
+withTransformation t act = do Canvas.pushMatrix
+                              applyTransformation t
+                              act
+                              Canvas.popMatrix
+
+
+applyTransformation :: Real r => Transformation 2 r -> Canvas ()
+applyTransformation = applyMatrix . toCairoMatrix . view transformationMatrix . fmap realToFrac
+
+toCairoMatrix                            :: Matrix 3 3 Double -> CairoMatrix.Matrix
+toCairoMatrix (Matrix (Vector3
+                       (Vector3 a b c)
+                       (Vector3 d e f)
+                       _)              ) = CairoMatrix.Matrix a b d e c f
+
+
+withFontTransform      :: Real r => Transformation 2 r -> Canvas () -> Canvas ()
+withFontTransform t act = let m = toCairoMatrix . view transformationMatrix . fmap realToFrac $ t
+                          in withFontMatrix m act
+
+--------------------------------------------------------------------------------
+-- Move to cairo-canvas
+
+-- | Apply a given transformation
+applyMatrix :: CairoMatrix.Matrix -> Canvas ()
+applyMatrix = lift . Cairo.transform
+
+
+-- | Run a computation with a font matrix
+withFontMatrix       :: CairoMatrix.Matrix -> Canvas () -> Canvas ()
+withFontMatrix m act = do origMatrix <- lift Cairo.getFontMatrix
+                          lift $ Cairo.setFontMatrix m
+                          act
+                          lift $ Cairo.setFontMatrix origMatrix

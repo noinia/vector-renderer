@@ -7,25 +7,19 @@ module VectorRenderer.ReflexSDLRenderer
   , viewportDyn
 
   , renderInViewport
-  , withFontMatrix, applyMatrix
   ) where
 
-import           Control.Lens ((^.), view)
-import           Control.Monad.Reader (ReaderT, runReaderT, MonadReader, ask)
-import           Control.Monad.Trans.Class (lift)
-import           Data.Geometry.Matrix
-import           Data.Geometry.Transformation
-import           Data.Geometry.Vector
-import           Data.Geometry.Vector.VectorFamilyPeano
-import qualified Graphics.Rendering.Cairo as C
-import           Graphics.Rendering.Cairo.Canvas
-import qualified Graphics.Rendering.Cairo.Matrix as CairoMatrix
-import           Reflex
-import           Reflex.SDL2 hiding (Vector)
-import           SDL.Cairo
-import           SDL.GeometryUtil
-import           VectorRenderer.Viewport
-
+import Control.Lens ((^.))
+import Control.Monad.Reader (ReaderT, runReaderT, MonadReader, ask)
+import Data.Geometry.Vector
+import Data.Geometry.Vector.VectorFamilyPeano
+import Graphics.Rendering.Cairo.Canvas
+import Reflex
+import Reflex.SDL2 hiding (Vector)
+import SDL.Cairo
+import SDL.GeometryUtil
+import VectorRenderer.RenderCanvas (withTransformation)
+import VectorRenderer.Viewport
 -------------------------------------------------------------------------------
 
 
@@ -84,10 +78,8 @@ reflexSdlApp window renderer reflexMain' = do
                                    present renderer
   performEvent_ $ attachWith rerender (current dViewport) (updated dynLayers)
 
-renderInViewport              :: Real r => Viewport r -> Canvas () -> Canvas ()
-renderInViewport viewport act =
-  do applyTransformation (viewport^.worldToHost)
-     act
+renderInViewport          :: Real r => Viewport r -> Canvas () -> Canvas ()
+renderInViewport viewport = withTransformation (viewport^.worldToHost)
 
 -- | Draw a layer stack that changes over time.
 drawLayers :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)
@@ -107,32 +99,3 @@ white = gray 255
 
 
 --------------------------------------------------------------------------------
-
-applyTransformation :: Real r => Transformation 2 r -> Canvas ()
-applyTransformation = applyMatrix . toCairoMatrix . view transformationMatrix . fmap realToFrac
-
-toCairoMatrix                            :: Matrix 3 3 Double -> CairoMatrix.Matrix
-toCairoMatrix (Matrix (Vector3
-                       (Vector3 a b c)
-                       (Vector3 d e f)
-                       _)              ) = CairoMatrix.Matrix a b d e c f
-
-
-withFontTransform      :: Real r => Transformation 2 r -> Canvas () -> Canvas ()
-withFontTransform t act = let m = toCairoMatrix . view transformationMatrix . fmap realToFrac $ t
-                          in withFontMatrix m act
-
---------------------------------------------------------------------------------
--- Move to cairo-canvas
-
--- | Apply a given transformation
-applyMatrix :: CairoMatrix.Matrix -> Canvas ()
-applyMatrix = lift . C.transform
-
-
--- | Run a computation with a font matrix
-withFontMatrix       :: CairoMatrix.Matrix -> Canvas () -> Canvas ()
-withFontMatrix m act = do origMatrix <- lift C.getFontMatrix
-                          lift $ C.setFontMatrix m
-                          act
-                          lift $ C.setFontMatrix origMatrix
