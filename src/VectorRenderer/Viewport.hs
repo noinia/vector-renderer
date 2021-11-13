@@ -3,6 +3,7 @@ module VectorRenderer.Viewport
   ( Viewport(Viewport)
   , viewPort, worldToHost
   , flipY
+  , viewPortAlignment
   )
   where
 
@@ -32,6 +33,16 @@ flipY (Vector2 w h) = Viewport (box (ext origin) (ext $ Point2 w h))
 -- bottom-left and upwards.
 flipY'   :: Num r => r -> Transformation 2 r
 flipY' h = translation (Vector2 0 h) |.| scaling (Vector2 1 (-1))
+
+
+-- | Translate s.t. the origin is the bottom left corner of the
+-- viewport.
+viewPortAlignment    :: Num r => Viewport r -> Transformation 2 r
+viewPortAlignment vp = translation . ((-1) *^) $ vp^.viewPort.to minPoint.core.vector
+
+
+
+
 
 
 data Zoom r = Zoom { _range        :: Range r

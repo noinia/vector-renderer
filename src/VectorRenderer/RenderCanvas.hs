@@ -35,8 +35,10 @@ colored     :: RealFrac r => (a -> Canvas b) -> a :+ IpeColor r -> Canvas b
 colored f x = colored' f (x&extra %~ fromMaybe (Canvas.gray 255) . toCanvasColor)
 
 colored'            :: (a -> Canvas b) -> a :+ Canvas.Color -> Canvas b
-colored' f (x :+ c) = Canvas.fill c >> f x
-
+colored' f (x :+ c) = do Canvas.fill c
+                         y <- f x
+                         Canvas.noFill
+                         pure y
 
 rectangle    :: (Real r, Ord r, Num r) => Rectangle p r -> Canvas ()
 rectangle r' = let r                                 = second realToFrac r'

@@ -5,6 +5,9 @@ module VectorRenderer.ReflexSDLRenderer
 
   , windowSizeDyn
   , viewportDyn
+
+  , renderInViewport
+  , withFontMatrix, applyMatrix
   ) where
 
 import           Control.Lens ((^.), view)
@@ -73,13 +76,18 @@ reflexSdlApp window renderer reflexMain' = do
   -- at every update to the layers, rerender
   let rerender viewport layers = do
                                    clear renderer
-                                   liftIO . withCairoTexture' texture $ runCanvas $ do
-                                     applyTransformation (viewport^.worldToHost)
-                                     background white
-                                     sequence_ layers
+                                   liftIO . withCairoTexture' texture . runCanvas
+                                     . renderInViewport viewport $ do
+                                         background white
+                                         sequence_ layers
                                    copy renderer texture Nothing Nothing
                                    present renderer
   performEvent_ $ attachWith rerender (current dViewport) (updated dynLayers)
+
+renderInViewport              :: Real r => Viewport r -> Canvas () -> Canvas ()
+renderInViewport viewport act =
+  do applyTransformation (viewport^.worldToHost)
+     act
 
 -- | Draw a layer stack that changes over time.
 drawLayers :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)
