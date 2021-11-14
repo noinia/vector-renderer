@@ -1,10 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 module VectorRenderer.Viewport
   ( Viewport(Viewport), mkViewport
-  , viewPort, worldToHost
+  , viewPort, worldToHost, hostToWorld
+  , toWorldIn, toHostFrom
   , flipY
   , centeredOrigin
   , alignedOrigin
+  -- * Panning
+  , PanStatus(..)
+  , applyPan
   )
   where
 
@@ -15,6 +19,7 @@ import Data.Geometry.Box
 import Data.Geometry.Point
 import Data.Geometry.Transformation
 import Data.Geometry.Vector
+import Data.Geometry.Properties
 import Data.Range
 
 --------------------------------------------------------------------------------
@@ -30,6 +35,28 @@ makeLenses ''Viewport
 -- center of the viewport.
 mkViewport     :: Fractional r => Rectangle p r -> Transformation 2 r -> Viewport r
 mkViewport r t = centeredOrigin r & worldToHost %~ (|.| t)
+
+
+-- | Host to world transformation, i.e. given a point in the host
+-- coordinate system, we can compute the point in world coordinates
+-- using this transformation.
+hostToWorld :: Fractional r => Getter (Viewport r) (Transformation 2 r)
+hostToWorld = worldToHost.to inverseOf
+
+--------------------------------------------------------------------------------
+
+-- | Convert some geometry in host coordinates to world coordinates in
+-- the viewport
+toWorldIn    :: (IsTransformable g, NumType g ~ r, Dimension g ~ 2, Fractional r)
+             => Viewport r -> g -> g
+toWorldIn vp = transformBy (vp^.hostToWorld)
+
+-- | Convert some geometry in world coordinates to host coordinates
+-- according to the viewport
+toHostFrom  :: (IsTransformable g, NumType g ~ r, Dimension g ~ 2, Num r)
+             => Viewport r -> g -> g
+toHostFrom vp = transformBy (vp^.worldToHost)
+
 
 --------------------------------------------------------------------------------
 
@@ -58,10 +85,26 @@ alignedOrigin rect' = Viewport (first (const ()) rect')  (translation $ bottomLe
 
 
 --------------------------------------------------------------------------------
+-- * Panning
+
+data PanStatus r = NoPan
+                 | PanFrom (Point 2 r) -- ^ point from which we are panning
+                           (Point 2 r) -- ^ center point of the viewport at that time
+                 deriving (Show,Eq)
+
+
+applyPan         :: Num r
+                 => PanStatus r
+                 -> Point 2 r -- ^ current mouse position
+                 -> Point 2 r   -- ^ current center
+                 -> Point 2 r
+applyPan ps p c = case ps of
+  NoPan        -> c
+  PanFrom q oc -> let Vector2 vx vy = p .-. q in oc .+^  Vector2 ((-1)*vx) vy
 
 
 
-
+--------------------------------------------------------------------------------
 data Zoom r = Zoom { _range        :: Range r
                    , _currentLevel :: r
                    }

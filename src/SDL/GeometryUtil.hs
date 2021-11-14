@@ -49,7 +49,18 @@ mousePositionDyn = do evMouseMove <- getMouseMotionEvent
                   in Point2 x y :+ eventData
 
 
+-- | Dynamic that indicates when the left-mouse button is down.
+mouseDownDyn :: ( RealFrac r
+                , ReflexSDL2 t m, MonadReader (Dynamic t (Viewport r)) m)
+             => m (Dynamic t Bool)
+mouseDownDyn = toggle False =<< mouseClickEvent
 
+
+mouseDownEvent :: ( Num r
+                  , RealFrac r'
+                  , ReflexSDL2 t m, MonadReader (Dynamic t (Viewport r')) m)
+               => m (Event t (Point 2 r :+ MouseButtonEventData))
+mouseDownEvent = mouseClickEvent
 
 
 -- | Mouseclick event

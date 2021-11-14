@@ -67,6 +67,7 @@ library
     VectorRenderer.ReflexSDLRenderer
 
     VectorRenderer.Viewport
+    VectorRenderer.PannableViewport
 
 
     SDL.Util

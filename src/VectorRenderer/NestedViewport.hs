@@ -8,19 +8,19 @@ import           Data.Geometry.Box
 import           Data.Geometry.Point
 import           Data.Geometry.Transformation
 import           Data.RealNumber.Rational
+import           Debug.Trace
 import           Graphics.Rendering.Cairo.Canvas (Canvas)
-import           Ipe.Color
 import           Ipe
+import           Ipe.Color
 import           Reflex
 import           Reflex.SDL2 hiding (point, Rectangle, Point)
 import           SDL.GeometryUtil
 import           SDL.Util
 import           System.Random
+import           VectorRenderer.PannableViewport
 import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
 import           VectorRenderer.Viewport
-
-import Debug.Trace
 --------------------------------------------------------------------------------
 
 type R = RealNumber 5
@@ -32,7 +32,6 @@ randomPoint = (\x y -> ext . fmap realToFrac $ Point2 x y)
               <$> randomRIO @Int (0,300)
               <*> randomRIO (0,300)
 
-
 -- | Main reflex app that can also render layers
 reflexMain :: (ReflexSDL2Renderer t m Double) => m ()
 reflexMain = do
@@ -40,9 +39,13 @@ reflexMain = do
                let r = box (ext $ Point2 10 10) (ext $ Point2 200 300)
                drawLayer . pure $ ipeObject . iO $ defIO r ! attr SFill red
 
-               drawLayer . pure . drawInViewport myViewport $ do
-                 ipeObject . iO $ defIO (traceShowId $ Point2 0 0) ! attr SStroke blue
-                 ipeObject . iO $ defIO r ! attr SStroke blue
+               dViewport <- pannableViewportDyn myViewport
+
+               let drawStuff = do
+                     ipeObject . iO $ defIO (traceShowId $ Point2 0 0) ! attr SStroke blue
+                     ipeObject . iO $ defIO r ! attr SStroke blue
+
+               drawLayer $ flip drawInViewport drawStuff <$> dViewport
 
                -- show a point at the mouse pos
                dMousePos <- mousePositionDyn
