@@ -14,28 +14,46 @@ import qualified Data.List as List
 
 --------------------------------------------------------------------------------
 
-type Size = Int
 
-data Attribute r = Spacing r
-                 | Padding r
+-- | Possible Attributes for the layout
+--
+-- padding and spacing is Elm-ui inspired.
+--
+data Attribute r = Spacing r -- ^ spacing between children.
+                 | Padding r -- ^ around the boundary of the objects
                  deriving (Show,Eq)
 makePrisms ''Attribute
 
+type Attributes r = [Attribute r]
 
+
+type Size = Int
+
+-- | Child of some layout combinator.
 data Child r a = Child { _relativeSize :: Size
                        , _theLayout    :: Layout r a
                        } deriving (Show,Eq)
 
-
-data Layout r a = Full    a [Attribute r]
-                | Rows    a [Attribute r] [Child r a]
-                | Columns a [Attribute r] [Child r a]
+-- | tiling based Layout
+data Layout r a = Full    a (Attributes r)
+                | Rows    a (Attributes r) [Child r a]
+                | Columns a (Attributes r) [Child r a]
                 deriving (Show,Eq)
+
+
+-- | Equal size rows
+rowsUniform           :: a -> [Attribute r] -> [Layout r a] -> Layout r a
+rowsUniform x ats chs = Rows x ats $ map (Child 1) chs
+
+-- | Equal size columns
+columnsUniform           :: a -> [Attribute r] -> [Layout r a] -> Layout r a
+columnsUniform x ats chs = Columns x ats $ map (Child 1) chs
 
 
 makeLenses ''Child
 
-attributes :: Lens' (Layout r a) [Attribute r]
+-- | Get access to the attributes
+attributes :: Lens' (Layout r a) (Attributes r)
 attributes = lens (\case
                       Full    _ ats   -> ats
                       Rows    _ ats _ -> ats
@@ -68,17 +86,8 @@ instance Traversable (Layout r) where
     Columns x ats chs -> (\y chs' -> Columns y ats chs') <$> f x <*> traverse (traverse f) chs
 
 
-
-data HAlign = AlignLeft
-            | HCenter
-            | AlignRight
-            deriving (Show,Eq)
-
-data VAlign = AlignTop
-            | VCenter
-            | AlignBottom
-            deriving (Show,Eq)
-
+--------------------------------------------------------------------------------
+-- * Computing the layout
 
 data LayoutResult r = LayoutResult { _assignedSpace :: Rectangle () r
                                    -- ^ the space (including spacing) assigned to this node
@@ -90,11 +99,8 @@ data LayoutResult r = LayoutResult { _assignedSpace :: Rectangle () r
 
 
 
-
--- computeLayout     :: Fractional r
---                   => Vector 2 r -> Layout a -> Layout (Rectangle 2 r, Transformation 2 r)
--- computeLayout dim =
-
+-- | For each element of the layout we compute the rectangle
+-- representing the space assigned to this node/element.
 computeLayout        :: forall r a. (Fractional r, Ord r)
                      => Rectangle () r -> Layout r a
                      -> Layout r (Rectangle () r :+ a)
@@ -119,12 +125,21 @@ computeLayout screen layout = case layout of
     spacing = getSpacing ats
     totalSpacing chs = (0 `max` (List.genericLength chs - 1)) * spacing
 
+----------------------------------------
+-- * Helper functions for computeLayout
 
+-- | Computes the total weight of all children
 totalWeight :: Num r => [Child r a] -> r
 totalWeight = fromIntegral . sum . map (^.relativeSize)
 
+-- | Lay out a bunch of children horizontally
 horizontal                   :: (Fractional r, Ord r)
-                             => Point 2 r -> (r -> Vector 2 r) -> r -- ^ spacing
+                             => Point 2 r -- ^ bottom left point
+                             -> (r -> Vector 2 r) -- ^ determine the
+                                                  -- size of child
+                                                  -- based on its
+                                                  -- relative size.
+                             -> r -- ^ spacing
                              -> [Child r a] -> [Child r (Rectangle () r :+ a)]
 horizontal bl0 f spacing chs = map (\(r :+ c) -> c&theLayout %~ computeLayout r)
                              . placeAll . map (assignFract f t) $ chs
@@ -137,11 +152,11 @@ horizontal bl0 f spacing chs = map (\(r :+ c) -> c&theLayout %~ computeLayout r)
                                                                    )
                                     ) bl0
 
-getSpacing :: Num r => [Attribute r] -> r
-getSpacing = fromMaybe 0 . listToMaybe . mapMaybe (^?_Spacing)
-
+-- | Lay out a bunch of children vertically
 vertical                   :: (Fractional r, Ord r)
-                           => Point 2 r -> (r -> Vector 2 r) -> r
+                           => Point 2 r -- ^ top left corner
+                           -> (r -> Vector 2 r) -- ^ determine the size from its relative size
+                           -> r -- ^ spacing
                            -> [Child r a] -> [Child r (Rectangle () r :+ a)]
 vertical tl0 f spacing chs = map (\(r :+ c) -> c&theLayout %~ computeLayout r)
                            . placeAll . map (assignFract f t) $ chs
@@ -154,17 +169,45 @@ vertical tl0 f spacing chs = map (\(r :+ c) -> c&theLayout %~ computeLayout r)
                                     ) tl0
 
 
+-- | Get the spacing attribute (or 0) if not set
+getSpacing :: Num r => Attributes r -> r
+getSpacing = fromMaybe 0 . listToMaybe . mapMaybe (^?_Spacing)
+
+
+-- | Compute the size of a child based on its relative size.
 assignFract         :: Fractional r
-                    => (r -> Vector 2 r)
-                    -> r -- ^ total
+                    => (r -> Vector 2 r) -- ^ how we compute the size from its relative size.
+                    -> r -- ^ total relative size
                     -> Child r a
                     -> Vector 2 r :+ Child r a
 assignFract f total c = f ((c^.relativeSize.to fromIntegral) / total) :+ c
 
+--------------------------------------------------------------------------------
+-- * Dealing with content
+
+-- | Horizontal Alignments
+data HAlign = AlignLeft
+            | HCenter
+            | AlignRight
+            deriving (Show,Eq)
+
+-- | Vertical allignments
+data VAlign = AlignTop
+            | VCenter
+            | AlignBottom
+            deriving (Show,Eq)
+
+
+
+
+
+
+
+
 
 --------------------------------------------------------------------------------
 
-shrink         :: (Arity d, Num r) => r -> Box d p r -> Box d p r
+shrink         :: (Arity d, Num r, Ord r) => r -> Box d p r -> Box d p r
 shrink delta r = r&minP.core.cwMin %~ (.+^ pure delta)
                   &maxP.core.cwMax %~ (.-^ pure delta)
   -- fixme; make sure that min remains smaller than max.
