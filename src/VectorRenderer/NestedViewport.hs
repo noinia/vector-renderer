@@ -1,26 +1,30 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module VectorRenderer.NestedViewport where
 
-import           Control.Lens
-import           Control.Monad (void)
-import           Data.Ext
-import           Data.Geometry.Box
-import           Data.Geometry.Point
-import           Data.Geometry.Transformation
-import           Data.RealNumber.Rational
-import           Debug.Trace
-import           Graphics.Rendering.Cairo.Canvas (Canvas)
-import           Ipe
-import           Ipe.Color
-import           Reflex
-import           Reflex.SDL2 hiding (point, Rectangle, Point)
-import           SDL.GeometryUtil
-import           SDL.Util
-import           System.Random
-import           VectorRenderer.PannableViewport
-import           VectorRenderer.ReflexSDLRenderer
-import           VectorRenderer.RenderCanvas
-import           VectorRenderer.Viewport
+import Control.Lens
+import Control.Monad (void)
+import Data.Bifunctor
+import Data.Ext
+import Data.Geometry.Box
+import Data.Geometry.Point
+import Data.Geometry.Transformation
+import Data.RealNumber.Rational
+import Debug.Trace
+import Graphics.Rendering.Cairo.Canvas (Canvas)
+import Ipe
+import Ipe.Color
+import Reflex
+import Reflex.SDL2 hiding (point, Rectangle, Point)
+import SDL.GeometryUtil
+import SDL.Util
+import System.Random
+import VectorRenderer.PannableViewport
+import VectorRenderer.ReflexSDLRenderer
+import VectorRenderer.RenderCanvas
+import VectorRenderer.Viewport
+
+
+import VectorRenderer.Layout
 --------------------------------------------------------------------------------
 
 type R = RealNumber 5
@@ -31,6 +35,29 @@ randomPoint :: IO (Point 2 R :+ ())
 randomPoint = (\x y -> ext . fmap realToFrac $ Point2 x y)
               <$> randomRIO @Int (0,300)
               <*> randomRIO (0,300)
+
+----------------------------------------
+myLayout :: Layout R (IpeColor R)
+myLayout = Rows red [ Padding 15
+                    , Spacing 10
+                    ]
+                    [ Child 1 (Full blue [])
+                    , Child 1 (Full green [])
+                    , Child 2 (Columns yellow [ Spacing 20
+                                              , Padding 2
+                                              ]
+                                [ Child 1 (Full seagreen [])
+                                , Child 1 (Full orange   [])
+                                ])
+                    ]
+
+
+renderLayout   :: RealFrac r => Rectangle p r -> Layout r (IpeColor r) -> Canvas ()
+renderLayout r = mapM_ render . computeLayout (first (const ()) r)
+  where
+    render = colored rectangle
+
+--------------------------------------------------------------------------------
 
 
 -- | Main reflex app that can also render layers
@@ -54,6 +81,10 @@ reflexMain = do
                      ipeObject . iO $ defIO r ! attr SStroke blue
 
                drawLayer $ flip drawInViewport drawStuff <$> dViewport
+
+               let screen = box (ext $ Point2 600 200) (ext $ Point2 1000 800)
+               drawLayer . pure $ renderLayout screen myLayout
+
 
                -- show a point at the mouse pos
                dMousePos <- mousePositionDyn
@@ -94,7 +125,7 @@ main = do
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
                          , windowResizable       = True
                          -- , windowHighDPI         = False
-                         -- , windowInitialSize     = V2 640 480
+                         , windowInitialSize     = V2 1024 980
                          }
   withWindow "convex hull" cfg $ \window -> do
     void $ glCreateContext window

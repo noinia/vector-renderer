@@ -79,6 +79,7 @@ library
 
     Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval
 
+    VectorRenderer.Layout
 
   hs-source-dirs: src
 
