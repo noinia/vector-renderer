@@ -32,6 +32,7 @@ randomPoint = (\x y -> ext . fmap realToFrac $ Point2 x y)
               <$> randomRIO @Int (0,300)
               <*> randomRIO (0,300)
 
+
 -- | Main reflex app that can also render layers
 reflexMain :: (ReflexSDL2Renderer t m Double) => m ()
 reflexMain = do
@@ -39,7 +40,14 @@ reflexMain = do
                let r = box (ext $ Point2 10 10) (ext $ Point2 200 300)
                drawLayer . pure $ ipeObject . iO $ defIO r ! attr SFill red
 
-               dViewport <- pannableViewportDyn myViewport
+
+               -- dz <- zoomDyn defaultZoomConfig
+               -- performEvent_ $ ffor (updated dz) $ \z ->
+               --   liftIO $ print z
+
+               -- dViewport <- pannableViewportDyn myViewport
+               dViewport <- zoomableViewportDyn defaultZoomConfig myViewport
+
 
                let drawStuff = do
                      ipeObject . iO $ defIO (traceShowId $ Point2 0 0) ! attr SStroke blue

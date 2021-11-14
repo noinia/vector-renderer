@@ -6,20 +6,21 @@ module VectorRenderer.Viewport
   , flipY
   , centeredOrigin
   , alignedOrigin
-  -- * Panning
-  , PanStatus(..)
-  , applyPan
+  , wrtCenter
+  -- * ZoomConfiging
+  , ZoomConfig(ZoomConfig), range, currentLevel
+  , defaultZoomConfig
   )
   where
 
-import Control.Lens hiding (Zoom)
+import Control.Lens
 import Data.Bifunctor
 import Data.Ext
 import Data.Geometry.Box
 import Data.Geometry.Point
+import Data.Geometry.Properties
 import Data.Geometry.Transformation
 import Data.Geometry.Vector
-import Data.Geometry.Properties
 import Data.Range
 
 --------------------------------------------------------------------------------
@@ -84,32 +85,24 @@ alignedOrigin rect' = Viewport (first (const ()) rect')  (translation $ bottomLe
     bottomLeft = rect'^.to minPoint.core
 
 
---------------------------------------------------------------------------------
--- * Panning
-
-data PanStatus r = NoPan
-                 | PanFrom (Point 2 r) -- ^ point from which we are panning
-                           (Point 2 r) -- ^ center point of the viewport at that time
-                 deriving (Show,Eq)
-
-
-applyPan         :: Num r
-                 => PanStatus r
-                 -> Point 2 r -- ^ current mouse position
-                 -> Point 2 r   -- ^ current center
-                 -> Point 2 r
-applyPan ps p c = case ps of
-  NoPan        -> c
-  PanFrom q oc -> let Vector2 vx vy = p .-. q in oc .+^  Vector2 ((-1)*vx) vy
-
-
+-- | make the transformation with respect to the center of the viewport
+wrtCenter             :: Fractional r => Viewport r -> Transformation 2 r -> Transformation 2 r
+wrtCenter vp trans' = let v = centerPoint (vp^.viewPort) .-. origin
+                      in translation v |.| trans' |.| translation ((-1) *^ v)
 
 --------------------------------------------------------------------------------
-data Zoom r = Zoom { _range        :: Range r
-                   , _currentLevel :: r
-                   }
-            deriving (Show,Eq)
-makeLenses ''Zoom
 
-defaultZoom :: Fractional r => Zoom r
-defaultZoom = Zoom (ClosedRange 0.1 4) 1
+data ZoomConfig r = ZoomConfig { _range        :: Range r
+                               , _currentLevel :: r
+                               }
+                  deriving (Show,Eq)
+
+range :: Lens' (ZoomConfig r) (Range r)
+range = lens _range (\(ZoomConfig _ l) r' -> ZoomConfig r' l)
+
+-- | Clamps the value to the right range on set
+currentLevel :: Ord r => Lens' (ZoomConfig r) r
+currentLevel = lens _currentLevel (\(ZoomConfig r _) l' -> ZoomConfig r (clampTo r l'))
+
+defaultZoomConfig :: Fractional r => ZoomConfig r
+defaultZoomConfig = ZoomConfig (ClosedRange 0.1 4) 1
