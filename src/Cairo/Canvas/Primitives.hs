@@ -39,7 +39,7 @@ withTransformation t act = do Canvas.pushMatrix
                               Canvas.popMatrix
                               pure y
 
-withFontTransform      :: Real r => Transformation 2 r -> Canvas () -> Canvas ()
+withFontTransform      :: Real r => Transformation 2 r -> Canvas b -> Canvas b
 withFontTransform t act = let m = toCairoMatrix . view transformationMatrix . fmap realToFrac $ t
                           in withFontMatrix m act
 
@@ -93,6 +93,13 @@ triangle                                         :: Real r => Triangle 2 p r -> 
 triangle t' = let (Triangle p q r) = second realToFrac t' in
     Canvas.triangle (p^.core.toV2') (q^.core.toV2') (r^.core.toV2')
 
+
+--------------------------------------------------------------------------------
+
+textAt     :: RealFrac r => Point 2 r -> String -> Canvas (Point 2 r)
+textAt p s = Point . Vector . fmap realToFrac
+          <$> withTransformation reflectionV (Canvas.text s (realToFrac <$> p^.toV2'))
+
 --------------------------------------------------------------------------------
 -- * Helpers
 
@@ -100,12 +107,12 @@ toV2' :: Getter (Point 2 r) (V2 r)
 toV2' = vector.unV.to (\(VectorFamily v2) -> v2)
 
 -- | Run a computation with a font matrix
-withFontMatrix       :: CairoMatrix.Matrix -> Canvas () -> Canvas ()
+withFontMatrix       :: CairoMatrix.Matrix -> Canvas b -> Canvas b
 withFontMatrix m act = do origMatrix <- lift Cairo.getFontMatrix
                           lift $ Cairo.setFontMatrix m
-                          act
+                          y <- act
                           lift $ Cairo.setFontMatrix origMatrix
-
+                          pure y
 
 
 applyTransformation :: Real r => Transformation 2 r -> Canvas ()

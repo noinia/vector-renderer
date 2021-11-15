@@ -16,7 +16,7 @@ import Graphics.Rendering.Cairo.Canvas (Canvas)
 import Ipe
 import Ipe.Color
 import Reflex
-import Reflex.SDL2 hiding (point, Rectangle, Point)
+import Reflex.SDL2 hiding (point, origin, Rectangle, Point)
 import SDL.GeometryUtil
 import SDL.Util
 import System.Random
@@ -75,6 +75,7 @@ reflexMain = do
                drawLayer . pure $ ipeObject . iO $ defIO r ! attr SFill red
 
 
+
                drawLayer . pure $ roundedRectangle' (Just red)
                                                     (Just blue)
                                                     20 (box (ext $ Point2 100 700)
@@ -92,6 +93,7 @@ reflexMain = do
                let drawStuff = do
                      ipeObject . iO $ defIO (traceShowId $ Point2 0 0) ! attr SStroke blue
                      ipeObject . iO $ defIO r ! attr SStroke blue
+                     void $ textAt origin "foo"
 
                drawLayer $ flip drawInViewport drawStuff <$> dViewport
 
@@ -112,7 +114,7 @@ reflexMain = do
 -- | Viewport in which everything is rotated 90 deg.
 myViewport :: Viewport Double
 myViewport = mkViewport (box (ext $ Point2 100 100) (ext $ Point2 500 500))
-                        (rotation $ pi / 2 )
+                        Data.Geometry.Transformation.identity -- (rotation $ pi / 2 )
 
 -- | Draws the content in the viewport
 drawViewport          :: RealFrac r => Viewport r -> Canvas ()
