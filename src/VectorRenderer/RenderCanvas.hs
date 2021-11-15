@@ -1,8 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module VectorRenderer.RenderCanvas where
 
+
 import           Control.Lens
-import           Control.Monad (void)
+import           Control.Monad (void, when)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Bifunctor
 import           Data.Colour.Names (readColourName)
@@ -10,10 +11,11 @@ import           Data.Colour.SRGB (RGB(..), toSRGB24)
 import           Data.Ext
 import           Data.Geometry
 import           Data.Geometry.Box
+import qualified Data.Geometry.Polygon as Polygon
 import           Data.Geometry.Matrix
 import           Data.Geometry.Triangle
 import           Data.Geometry.Vector.VectorFamilyPeano
-import           Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe, isJust)
 import           Data.Proxy
 import qualified Data.Text as Text
 import           Data.Vinyl
@@ -48,6 +50,49 @@ rectangle    :: (Real r, Ord r, Num r) => Rectangle p r -> Canvas ()
 rectangle r' = let r                                 = second realToFrac r'
                    (Corners _ _ _ (Point2 x y :+ _)) = corners r
                in Canvas.rect $ Canvas.D x y (width r) (height r)
+
+roundedRectangle                :: RealFrac r
+                                => Maybe Canvas.Color -- ^ stroke color
+                                -> Maybe Canvas.Color -- ^ fill color
+                                -> r -- ^ border radius
+                                -> Rectangle p r -- ^ non-rounded rect
+                                -> Canvas ()
+roundedRectangle mc mf s' rect' = do maybe Canvas.noFill   Canvas.fill   mf
+                                     when (isJust mf) $ do
+                                       Canvas.noStroke
+                                       polygon . Polygon.fromPoints . map ext
+                                         $ [ Point2 l     (b+s)
+                                           , Point2 l     (t-s)
+                                           , Point2 (l+s) t
+                                           , Point2 (r-s) t
+                                           , Point2 r     (t-s)
+                                           , Point2 r     (b+s)
+                                           , Point2 (r-s) b
+                                           , Point2 (l+s) b
+                                           ]
+                                     maybe Canvas.noStroke Canvas.stroke mc
+                                     arc  (Point2 l       (t-2*s)) 90 180
+                                     arc  (Point2 (r-2*s) (t-2*s)) 0 90
+                                     arc  (Point2 (r-2*s) b)     270 0
+                                     arc  (Point2 l       b) 180 270
+                                     line (Point2 l       (b+s)) (Point2 l     (t-s))
+                                     line (Point2 (l+s)   t)     (Point2 (r-s) t)
+                                     line (Point2 r       (t-s)) (Point2 r     (b+s))
+                                     line (Point2 (r-s)   b)     (Point2 (l+s) b)
+  where
+    Point2 l b = fmap realToFrac . view core . minPoint $ rect'
+    Point2 r t = fmap realToFrac . view core . maxPoint $ rect'
+
+    s = realToFrac s'
+
+    line a b' = Canvas.line (a^.toV2') (b'^.toV2')
+
+    -- bottom left corner start angle end angle. positive x axis has angle zero, angles are ccw.
+    arc (Point2 x y) a b' =
+      Canvas.arc (Canvas.D x y (2*s) (2*s))
+                 (Canvas.radians $ realToFrac a)
+                 (Canvas.radians $ realToFrac b')
+
 
 polygon     :: Real r => SimplePolygon p r -> Canvas ()
 polygon pg' = let pg = second realToFrac pg'
@@ -84,6 +129,18 @@ pathSegment                     :: Real r => PathSegment r -> Canvas ()
 pathSegment (PolyLineSegment p) = polyLine p
 pathSegment (PolygonPath p)     = polygon p
 pathSegment _                   = error "pathSegment: Not implemented yet"
+
+
+
+-- ipeRoundedRectangle         :: r -- ^ border radius
+--                             -> Rectangle 2 p r -- ^ non-rounded rect
+--                             -> Path r
+-- ipeRoundedRectangle r rect' = Path . fromList $ [ MoveTo bl'
+--                                                 , LineTo tl'
+
+--                                                 ]
+
+
 
 
 ipeUse              :: Real r => IpeSymbol r -> Canvas ()
