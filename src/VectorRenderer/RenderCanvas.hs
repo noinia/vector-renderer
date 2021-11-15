@@ -11,6 +11,7 @@ import           Data.Colour.SRGB (RGB(..), toSRGB24)
 import           Data.Ext
 import           Data.Geometry
 import           Data.Geometry.Box
+import qualified Data.Geometry.Box as Box
 import qualified Data.Geometry.Polygon as Polygon
 import           Data.Geometry.Matrix
 import           Data.Geometry.Triangle
@@ -51,34 +52,45 @@ rectangle r' = let r                                 = second realToFrac r'
                    (Corners _ _ _ (Point2 x y :+ _)) = corners r
                in Canvas.rect $ Canvas.D x y (width r) (height r)
 
+
+-- | Renders a rectangle with rounded corners.
 roundedRectangle                :: RealFrac r
+                                => Maybe (IpeColor r) -- ^ stroke color
+                                -> Maybe (IpeColor r) -- ^ fill color
+                                -> r -- ^ border radius
+                                -> Rectangle p r -- ^ non-rounded rect
+                                -> Canvas ()
+roundedRectangle ms mf = roundedRectangle' (ms >>= toCanvasColor) (mf >>= toCanvasColor)
+
+-- | Renders a rectangle with rounded corners.
+roundedRectangle'                :: RealFrac r
                                 => Maybe Canvas.Color -- ^ stroke color
                                 -> Maybe Canvas.Color -- ^ fill color
                                 -> r -- ^ border radius
                                 -> Rectangle p r -- ^ non-rounded rect
                                 -> Canvas ()
-roundedRectangle mc mf s' rect' = do maybe Canvas.noFill   Canvas.fill   mf
-                                     when (isJust mf) $ do
-                                       Canvas.noStroke
-                                       polygon . Polygon.fromPoints . map ext
-                                         $ [ Point2 l     (b+s)
-                                           , Point2 l     (t-s)
-                                           , Point2 (l+s) t
-                                           , Point2 (r-s) t
-                                           , Point2 r     (t-s)
-                                           , Point2 r     (b+s)
-                                           , Point2 (r-s) b
-                                           , Point2 (l+s) b
-                                           ]
-                                     maybe Canvas.noStroke Canvas.stroke mc
-                                     arc  (Point2 l       (t-2*s)) 90 180
-                                     arc  (Point2 (r-2*s) (t-2*s)) 0 90
-                                     arc  (Point2 (r-2*s) b)     270 0
-                                     arc  (Point2 l       b) 180 270
-                                     line (Point2 l       (b+s)) (Point2 l     (t-s))
-                                     line (Point2 (l+s)   t)     (Point2 (r-s) t)
-                                     line (Point2 r       (t-s)) (Point2 r     (b+s))
-                                     line (Point2 (r-s)   b)     (Point2 (l+s) b)
+roundedRectangle' mc mf s' rect' = do maybe Canvas.noFill   Canvas.fill   mf
+                                      when (isJust mf) $ do
+                                        Canvas.noStroke
+                                        polygon . Polygon.fromPoints . map ext
+                                          $ [ Point2 l     (b+s)
+                                            , Point2 l     (t-s)
+                                            , Point2 (l+s) t
+                                            , Point2 (r-s) t
+                                            , Point2 r     (t-s)
+                                            , Point2 r     (b+s)
+                                            , Point2 (r-s) b
+                                            , Point2 (l+s) b
+                                            ]
+                                      maybe Canvas.noStroke Canvas.stroke mc
+                                      arc  (Point2 l       (t-2*s)) 90 180
+                                      arc  (Point2 (r-2*s) (t-2*s)) 0 90
+                                      arc  (Point2 (r-2*s) b)     270 0
+                                      arc  (Point2 l       b) 180 270
+                                      line (Point2 l       (b+s)) (Point2 l     (t-s))
+                                      line (Point2 (l+s)   t)     (Point2 (r-s) t)
+                                      line (Point2 r       (t-s)) (Point2 r     (b+s))
+                                      line (Point2 (r-s)   b)     (Point2 (l+s) b)
   where
     Point2 l b = fmap realToFrac . view core . minPoint $ rect'
     Point2 r t = fmap realToFrac . view core . maxPoint $ rect'
@@ -320,3 +332,16 @@ withFontMatrix m act = do origMatrix <- lift Cairo.getFontMatrix
                           lift $ Cairo.setFontMatrix m
                           act
                           lift $ Cairo.setFontMatrix origMatrix
+
+
+--------------------------------------------------------------------------------
+
+-- | use some clipping rectangle while drawing things
+withClip :: (Num r, Real r) => Rectangle p r -> Canvas () -> Canvas ()
+withClip rect' act = do lift $ Cairo.rectangle x y w h
+                        lift Cairo.clip
+                        act
+                        lift Cairo.resetClip
+  where
+    Point2 x y = fmap realToFrac . view core . minPoint $ rect'
+    Vector2 w h = realToFrac <$> Box.size rect'

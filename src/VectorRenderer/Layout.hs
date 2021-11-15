@@ -1,9 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module VectorRenderer.Layout where
+module VectorRenderer.Layout
 
+  where
+
+import Data.Bifunctor
 import Data.Maybe
 import Data.Traversable
+import Data.Foldable
 import Data.Ext
 import Control.Lens
 import Data.Geometry.Box
@@ -30,7 +34,7 @@ type Attributes r = [Attribute r]
 type Size = Int
 
 -- | Child of some layout combinator.
-data Child r a = Child { _relativeSize :: Size
+data Child r a = Child { _relativeSize :: {-# UNPACK #-} !Size
                        , _theLayout    :: Layout r a
                        } deriving (Show,Eq)
 
@@ -41,16 +45,19 @@ data Layout r a = Full    a (Attributes r)
                 deriving (Show,Eq)
 
 
--- | Equal size rows
-rowsUniform           :: a -> [Attribute r] -> [Layout r a] -> Layout r a
-rowsUniform x ats chs = Rows x ats $ map (Child 1) chs
-
--- | Equal size columns
-columnsUniform           :: a -> [Attribute r] -> [Layout r a] -> Layout r a
-columnsUniform x ats chs = Columns x ats $ map (Child 1) chs
-
-
 makeLenses ''Child
+
+-- | Lens to the content of the root node
+content :: Lens' (Layout r a) a
+content = lens (\case
+                      Full    x _   -> x
+                      Rows    x _ _ -> x
+                      Columns x _ _ -> x
+                  ) (\l x -> case l of
+                                 Full _ ats -> Full x ats
+                                 Rows _ ats chs -> Rows x ats chs
+                                 Columns _ ats chs -> Columns x ats chs
+                    )
 
 -- | Get access to the attributes
 attributes :: Lens' (Layout r a) (Attributes r)
@@ -85,6 +92,34 @@ instance Traversable (Layout r) where
     Rows    x ats chs -> (\y chs' -> Rows y ats chs')    <$> f x <*> traverse (traverse f) chs
     Columns x ats chs -> (\y chs' -> Columns y ats chs') <$> f x <*> traverse (traverse f) chs
 
+--------------------------------------------------------------------------------
+-- * Layout smart constructors
+
+-- | Equal size rows
+rowsUniform           :: a -> [Attribute r] -> [Layout r a] -> Layout r a
+rowsUniform x ats chs = Rows x ats $ map (Child 1) chs
+
+-- | Equal size columns
+columnsUniform           :: a -> [Attribute r] -> [Layout r a] -> Layout r a
+columnsUniform x ats chs = Columns x ats $ map (Child 1) chs
+
+
+--------------------------------------------------------------------------------
+-- * Rendering the layout
+
+
+-- | Given an initial rectangle, and a rendering function that can
+-- render the content of a single item, renders the entire layout in
+-- back to front order.
+--
+-- The input to the render function is the rectangle that gives the
+-- space assigned to this element.
+--
+renderLayout          :: (Applicative f, Fractional r, Ord r)
+                      => Rectangle p r
+                      -> ((Rectangle () r :+ a) -> f ())
+                      -> Layout r a -> f ()
+renderLayout r render = traverse_ render . computeLayout (first (const ()) r)
 
 --------------------------------------------------------------------------------
 -- * Computing the layout

@@ -18,7 +18,7 @@ import Reflex
 import Reflex.SDL2 hiding (Vector)
 import SDL.Cairo
 import SDL.GeometryUtil
-import VectorRenderer.RenderCanvas (withTransformation)
+import VectorRenderer.RenderCanvas (withTransformation, withClip)
 import VectorRenderer.Viewport
 -------------------------------------------------------------------------------
 
@@ -79,7 +79,8 @@ reflexSdlApp window renderer reflexMain' = do
   performEvent_ $ attachWith rerender (current dViewport) (updated dynLayers)
 
 renderInViewport          :: Real r => Viewport r -> Canvas () -> Canvas ()
-renderInViewport viewport = withTransformation (viewport^.worldToHost)
+renderInViewport viewport = withClip (viewport^.viewPort)
+                          . withTransformation (viewport^.worldToHost)
 
 -- | Draw a layer stack that changes over time.
 drawLayers :: (ReflexSDL2 t m, DynamicWriter t [Layer] m)

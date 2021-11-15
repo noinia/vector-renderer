@@ -3,7 +3,6 @@ module VectorRenderer.NestedViewport where
 
 import Control.Lens
 import Control.Monad (void)
-import Data.Bifunctor
 import Data.Ext
 import Data.Geometry.Box
 import Data.Geometry.Point
@@ -52,8 +51,14 @@ myLayout = Rows red [ Padding 15
                     ]
 
 
-renderLayout   :: RealFrac r => Rectangle p r -> Layout r (IpeColor r) -> Canvas ()
-renderLayout r = mapM_ render . computeLayout (first (const ()) r)
+
+
+-- renderLayout   :: RealFrac r => Rectangle p r -> Layout r (IpeColor r) -> Canvas ()
+
+
+
+renderLayout'   :: RealFrac r => Rectangle p r -> Layout r (IpeColor r) -> Canvas ()
+renderLayout' r = renderLayout r render
   where
     render = colored rectangle
 
@@ -66,6 +71,12 @@ reflexMain = do
                drawLayer . pure $ ipeObject . iO $ defIO (Point2 0 0) ! attr SStroke black
                let r = box (ext $ Point2 10 10) (ext $ Point2 200 300)
                drawLayer . pure $ ipeObject . iO $ defIO r ! attr SFill red
+
+
+               drawLayer . pure $ roundedRectangle (Just red)
+                                                   (Just blue)
+                                                   20 (box (ext $ Point2 100 700)
+                                                           (ext $ Point2 400 800))
 
 
                -- dz <- zoomDyn defaultZoomConfig
@@ -83,7 +94,7 @@ reflexMain = do
                drawLayer $ flip drawInViewport drawStuff <$> dViewport
 
                let screen = box (ext $ Point2 600 200) (ext $ Point2 1000 800)
-               drawLayer . pure $ renderLayout screen myLayout
+               drawLayer . pure $ renderLayout' screen myLayout
 
 
                -- show a point at the mouse pos
@@ -119,6 +130,7 @@ drawInViewport viewport act = do drawViewport viewport
 --------------------------------------------------------------------------------
 
 main :: IO ()
+
 main = do
   initializeAll
   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
