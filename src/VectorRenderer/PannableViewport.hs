@@ -13,7 +13,7 @@ import qualified Data.Geometry.Transformation as Transformation
 import           Reflex
 import           Reflex.SDL2 hiding (point, Rectangle, Point)
 import           SDL.GeometryUtil
-import           VectorRenderer.Viewport
+import           UI.Viewport
 
 --------------------------------------------------------------------------------
 -- * Pannable viewport

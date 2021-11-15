@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module VectorRenderer.Viewport
+module UI.Viewport
   ( Viewport(Viewport), mkViewport
   , viewPort, worldToHost, hostToWorld
   , toWorldIn, toHostFrom

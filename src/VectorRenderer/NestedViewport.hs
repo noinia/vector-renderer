@@ -20,10 +20,11 @@ import System.Random
 import VectorRenderer.PannableViewport
 import VectorRenderer.ReflexSDLRenderer
 import VectorRenderer.RenderCanvas
-import VectorRenderer.Viewport
+import UI.Viewport
+import UI.Layout
+import Cairo.Canvas.Ipe
+import Cairo.Canvas.Primitives
 
-
-import VectorRenderer.Layout
 --------------------------------------------------------------------------------
 
 type R = RealNumber 5
@@ -73,10 +74,10 @@ reflexMain = do
                drawLayer . pure $ ipeObject . iO $ defIO r ! attr SFill red
 
 
-               drawLayer . pure $ roundedRectangle (Just red)
-                                                   (Just blue)
-                                                   20 (box (ext $ Point2 100 700)
-                                                           (ext $ Point2 400 800))
+               drawLayer . pure $ roundedRectangle' (Just red)
+                                                    (Just blue)
+                                                    20 (box (ext $ Point2 100 700)
+                                                            (ext $ Point2 400 800))
 
 
                -- dz <- zoomDyn defaultZoomConfig

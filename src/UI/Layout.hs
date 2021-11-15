@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module VectorRenderer.Layout
+module UI.Layout
 
   where
 
@@ -18,6 +18,18 @@ import qualified Data.List as List
 
 --------------------------------------------------------------------------------
 
+-- | Horizontal Alignments
+data HAlign = AlignLeft
+            | HCenter
+            | AlignRight
+            deriving (Show,Eq)
+
+-- | Vertical allignments
+data VAlign = AlignTop
+            | VCenter
+            | AlignBottom
+            deriving (Show,Eq)
+
 
 -- | Possible Attributes for the layout
 --
@@ -25,6 +37,8 @@ import qualified Data.List as List
 --
 data Attribute r = Spacing r -- ^ spacing between children.
                  | Padding r -- ^ around the boundary of the objects
+                 | HAlign HAlign
+                 | VAlign VAlign
                  deriving (Show,Eq)
 makePrisms ''Attribute
 
@@ -121,11 +135,28 @@ renderLayout          :: (Applicative f, Fractional r, Ord r)
                       -> Layout r a -> f ()
 renderLayout r render = traverse_ render . computeLayout (first (const ()) r)
 
+
+
+-- render :: ( IsBoxable g, IsTransformable g, NumType g ~ r, Dimension g ~ 2
+--           , Ord r, Fractional r
+--           )
+--        => Rectangle p r -> Layout r g -> Layout r (LayoutResult r g)
+-- render r = alignContent
+--          . computeLayout (first (const ()) r)
+
+
+-- alignContent :: Layout r (Rectangle () r :+ g) -> Layout r (LayoutResult r :+ g) ->
+-- alignContent = \case
+--   Full (r :+ g) _ats -> undefined
+--   Rows (r :+ _)
+
 --------------------------------------------------------------------------------
 -- * Computing the layout
 
 data LayoutResult r = LayoutResult { _assignedSpace :: Rectangle () r
-                                   -- ^ the space (including spacing) assigned to this node
+                                   -- ^ the space (including padding) assigned to this node
+                                   , _contentSpace  :: Rectangle () r
+                                   -- ^ bounding box of the item to be rendered
                                    , _transform     :: Transformation 2 r
                                    -- ^ the transformation that would appropriately draw
                                    -- the content of the item
@@ -219,18 +250,6 @@ assignFract f total c = f ((c^.relativeSize.to fromIntegral) / total) :+ c
 
 --------------------------------------------------------------------------------
 -- * Dealing with content
-
--- | Horizontal Alignments
-data HAlign = AlignLeft
-            | HCenter
-            | AlignRight
-            deriving (Show,Eq)
-
--- | Vertical allignments
-data VAlign = AlignTop
-            | VCenter
-            | AlignBottom
-            deriving (Show,Eq)
 
 
 

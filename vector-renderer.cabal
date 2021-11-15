@@ -74,12 +74,15 @@ library
     SDL.GeometryUtil
     VectorRenderer.ConvexHull
     VectorRenderer.SubdivViewer
-
     VectorRenderer.NestedViewport
 
     Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval
 
-    VectorRenderer.Layout
+    UI.Layout
+    UI.Canvas
+
+    Cairo.Canvas.Primitives
+    Cairo.Canvas.Ipe
 
   hs-source-dirs: src
 

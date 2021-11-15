@@ -3,6 +3,7 @@ module VectorRenderer.ConvexHull where
 
 
 import           Algorithms.Geometry.ConvexHull.GrahamScan
+import           Cairo.Canvas.Primitives
 import           Control.Monad (guard, void)
 import           Data.Ext
 import           Data.Geometry.Box
@@ -10,14 +11,13 @@ import           Data.Geometry.Point
 import           Data.Geometry.Polygon.Convex
 import           Data.Intersection
 import qualified Data.List.NonEmpty as NonEmpty
+import           Ipe.Color
 import           Reflex
 import           Reflex.SDL2 hiding (point, Rectangle, Point)
 import           SDL.GeometryUtil
 import           SDL.Util
 import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
-import           Ipe.Color
-
 --------------------------------------------------------------------------------
 
 data ButtonState = ButtonStateUp
@@ -58,7 +58,7 @@ button = do
                            ButtonStateUp   -> V4 192 192 192 255
                            ButtonStateOver -> 255
                            ButtonStateDown -> V4 128 128 128 255
-             in colored' rectangle (rect :+ color)
+             in withFill color $ rectangle rect
 
            updated <$> holdUniqDyn dButtonState
 
