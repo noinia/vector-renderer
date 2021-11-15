@@ -66,7 +66,6 @@ library
     -- VectorRenderer.RenderUtil
     VectorRenderer.ReflexSDLRenderer
 
-    VectorRenderer.Viewport
     VectorRenderer.PannableViewport
 
 
@@ -80,6 +79,7 @@ library
 
     UI.Layout
     UI.Canvas
+    UI.Viewport
 
     Cairo.Canvas.Primitives
     Cairo.Canvas.Ipe

@@ -21,6 +21,8 @@ import           Data.Proxy
 import           Data.RealNumber.Rational
 import qualified Data.Text as Text
 import           Ipe
+import           Cairo.Canvas.Primitives
+import           Cairo.Canvas.Ipe
 import           Ipe.Color
 import           Reflex hiding (Group)
 import           Reflex.SDL2 hiding (point, Rectangle, Point)

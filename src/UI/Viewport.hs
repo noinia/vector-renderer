@@ -9,7 +9,6 @@ module UI.Viewport
   , wrtCenter
   -- * ZoomConfiging
   , ZoomConfig(ZoomConfig), range, currentLevel
-  , defaultZoomConfig
   )
   where
 
@@ -22,6 +21,7 @@ import Data.Geometry.Properties
 import Data.Geometry.Transformation
 import Data.Geometry.Vector
 import Data.Range
+import Data.Default
 
 --------------------------------------------------------------------------------
 
@@ -104,5 +104,5 @@ range = lens _range (\(ZoomConfig _ l) r' -> ZoomConfig r' l)
 currentLevel :: Ord r => Lens' (ZoomConfig r) r
 currentLevel = lens _currentLevel (\(ZoomConfig r _) l' -> ZoomConfig r (clampTo r l'))
 
-defaultZoomConfig :: Fractional r => ZoomConfig r
-defaultZoomConfig = ZoomConfig (ClosedRange 0.1 4) 1
+instance Fractional r => Default (ZoomConfig r) where
+  def = ZoomConfig (ClosedRange 0.1 4) 1

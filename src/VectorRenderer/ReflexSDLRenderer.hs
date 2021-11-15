@@ -19,7 +19,7 @@ import Reflex.SDL2 hiding (Vector)
 import SDL.Cairo
 import SDL.GeometryUtil
 import Cairo.Canvas.Primitives (withTransformation, withClip)
-import VectorRenderer.Viewport
+import UI.Viewport
 -------------------------------------------------------------------------------
 
 

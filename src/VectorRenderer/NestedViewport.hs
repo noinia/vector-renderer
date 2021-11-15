@@ -1,8 +1,11 @@
 {-# LANGUAGE OverloadedStrings     #-}
 module VectorRenderer.NestedViewport where
 
+import Cairo.Canvas.Ipe
+import Cairo.Canvas.Primitives
 import Control.Lens
 import Control.Monad (void)
+import Data.Default
 import Data.Ext
 import Data.Geometry.Box
 import Data.Geometry.Point
@@ -17,13 +20,11 @@ import Reflex.SDL2 hiding (point, Rectangle, Point)
 import SDL.GeometryUtil
 import SDL.Util
 import System.Random
+import UI.Layout
+import UI.Viewport
 import VectorRenderer.PannableViewport
 import VectorRenderer.ReflexSDLRenderer
 import VectorRenderer.RenderCanvas
-import UI.Viewport
-import UI.Layout
-import Cairo.Canvas.Ipe
-import Cairo.Canvas.Primitives
 
 --------------------------------------------------------------------------------
 
@@ -85,7 +86,7 @@ reflexMain = do
                --   liftIO $ print z
 
                -- dViewport <- pannableViewportDyn myViewport
-               dViewport <- zoomableViewportDyn defaultZoomConfig myViewport
+               dViewport <- zoomableViewportDyn def myViewport
 
 
                let drawStuff = do

@@ -10,29 +10,30 @@ import           Data.Camera
 import           Data.Default
 import           Data.Ext
 import           Data.Geometry.Arrangement
-import           Data.Geometry.Box(Rectangle, box, size)
+import           Data.Geometry.Box (Rectangle, box, size)
 import           Data.Geometry.LineSegment
-import           Data.Geometry.Polygon hiding (size)
 import           Data.Geometry.PlanarSubdivision
 import           Data.Geometry.PlanarSubdivision.Draw
 import           Data.Geometry.Point
+import           Data.Geometry.Polygon hiding (size)
 import           Data.Geometry.Transformation
 import           Data.Geometry.Triangle
 import           Data.Geometry.Vector
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Text as Text
-import           Graphics.Rendering.Cairo.Canvas (Canvas, (!@))
+import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import qualified Graphics.Rendering.Cairo.Canvas as Canvas
 import           Ipe.Color
 import           Reflex hiding (Group)
 import           Reflex.SDL2 hiding (point, origin, Vector, Point, Rectangle)
 import           SDL.GeometryUtil
 import           SDL.Util
+import           UI.Viewport
 import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
-import           VectorRenderer.Viewport
 -- import           VectorRenderer.Project
-import qualified VectorRenderer.RenderCanvas as Render
+import qualified Cairo.Canvas.Ipe as Render
+import           Cairo.Canvas.Primitives
 import qualified Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval as HiddenSurfaceRemoval
 import           Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval (EdgeSide(..), Tri)
 import           Ipe
