@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Cairo.Canvas.Primitives where
 
 import           Control.Lens
@@ -17,6 +18,14 @@ import qualified Graphics.Rendering.Cairo.Matrix as CairoMatrix
 import           Linear.V2 (V2)
 
 --------------------------------------------------------------------------------
+
+type instance Dimension (Canvas b) = 2
+type instance NumType   (Canvas b) = Double
+instance IsTransformable (Canvas b) where
+  transformBy = withTransformation
+
+--------------------------------------------------------------------------------
+
 
 -- | With fill color
 withFill       :: Color -> Canvas b -> Canvas b
