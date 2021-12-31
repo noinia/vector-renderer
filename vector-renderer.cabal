@@ -106,6 +106,7 @@ library
                     , vector
                     , cairo
                     , random
+                    , witherable              >= 0.4
 
 
 executable vector-renderer
