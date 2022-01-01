@@ -98,8 +98,8 @@ reflexMain = do
                -- performEvent_ $ ffor (updated dz) $ \z ->
                --   liftIO $ print z
 
-               dViewport <- pannableViewportDyn' myViewport
-               -- dViewport <- zoomableViewportDyn def myViewport
+               dViewport <- pannableZoomableViewportDyn' def myViewport
+               -- dViewport <- zoomableViewportDyn' def myViewport
 
 
                let drawStuff = do
