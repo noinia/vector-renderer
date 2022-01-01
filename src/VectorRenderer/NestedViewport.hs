@@ -21,8 +21,8 @@ import SDL.GeometryUtil
 import SDL.Util
 import System.Random
 import UI.Layout
-import UI.Viewport
-import VectorRenderer.PannableViewport
+import GeomViewer.Viewport
+import GeomViewer.PannableViewport.SDL
 import VectorRenderer.ReflexSDLRenderer
 import VectorRenderer.RenderCanvas
 
