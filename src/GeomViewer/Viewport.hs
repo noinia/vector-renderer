@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
-module UI.Viewport
+module GeomViewer.Viewport
   ( Viewport(Viewport), mkViewport
   , viewPort, worldToHost, hostToWorld
   , toWorldIn, toHostFrom

@@ -22,7 +22,7 @@ import SDL.Util
 import System.Random
 import UI.Layout
 import GeomViewer.Viewport
-import GeomViewer.PannableViewport.SDL
+import GeomViewer.Viewport.Dynamic.SDL
 import VectorRenderer.ReflexSDLRenderer
 import VectorRenderer.RenderCanvas
 
@@ -98,7 +98,7 @@ reflexMain = do
                -- performEvent_ $ ffor (updated dz) $ \z ->
                --   liftIO $ print z
 
-               dViewport <- pannableZoomableViewportDyn' def myViewport
+               dViewport <- pannableZoomableViewportDyn def myViewport
                -- dViewport <- zoomableViewportDyn' def myViewport
 
 

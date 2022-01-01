@@ -28,7 +28,7 @@ import           Reflex hiding (Group)
 import           Reflex.SDL2 hiding (point, origin, Vector, Point, Rectangle)
 import           SDL.GeometryUtil
 import           SDL.Util
-import           UI.Viewport
+import           GeomViewer.Viewport
 import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
 -- import           VectorRenderer.Project

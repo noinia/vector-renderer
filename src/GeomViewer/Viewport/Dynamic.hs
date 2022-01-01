@@ -1,66 +1,25 @@
 {-# LANGUAGE RecursiveDo #-}
-
-module VectorRenderer.PannableViewport
-  -- ( pannableViewportDyn
-  -- , zoomableViewportDyn, zoomableViewportDyn'
-  -- )
-  where
+module GeomViewer.Viewport.Dynamic
+  ( pannableViewportDyn
+  , zoomableViewportDyn
+  , pannableZoomableViewportDyn
+  -- * The Events
+  , panEvents
+  , zoomEvents
+  -- * Helper
+  , viewportDynM
+  ) where
 
 import           Control.Lens
 import           Control.Monad
 import           Control.Monad.Fix
 import           Data.Bifunctor
-import           Data.Ext
 import           Data.Geometry.Point
 import           Data.Geometry.Transformation
+import           Data.Geometry.Vector
 import qualified Data.Geometry.Transformation as Transformation
+import           GeomViewer.Viewport
 import           Reflex
-import           Reflex.SDL2 hiding (point, Rectangle, Point, origin)
-import           SDL.GeometryUtil
-import           UI.Viewport
-
-
---------------------------------------------------------------------------------
--- * SDL viewports
-
-
-pannableZoomableViewportDyn'       :: forall t m r. (ReflexSDL2Renderer t m r, RealFrac r)
-                                   => ZoomConfig r -- ^ initial zoom convig
-                                   -> Viewport r -- ^ initial viewport
-                                   -> m (Dynamic t (Viewport r))
-pannableZoomableViewportDyn' z0 v0 = do
-    mousePosDyn <- fmap (maybe origin (^.core)) <$> mousePositionDyn
-    clickEvts   <- mouseClickEvent
-    wheelEvts   <- fromWheelEvents <$> getMouseWheelEvent
-    pannableZoomableViewportDyn z0 v0 mousePosDyn $ leftmost [ Left  <$> clickEvts
-                                                             , Right <$> wheelEvts
-                                                             ]
-
-pannableViewportDyn'    :: forall t m r. (ReflexSDL2Renderer t m r, RealFrac r)
-                        => Viewport r -- ^ initial viewport
-                        -> m (Dynamic t (Viewport r))
-pannableViewportDyn' v0 = do mousePosDyn <- fmap (maybe origin (^.core)) <$> mousePositionDyn
-                             clickEvts   <- mouseClickEvent
-                             pannableViewportDyn mousePosDyn v0 clickEvts
-
--- | Zoomable viewport
-zoomableViewportDyn'       :: forall t m r. (ReflexSDL2Renderer t m r, RealFrac r)
-                           => ZoomConfig r -- ^ zoom configuration
-                           -> Viewport r -- ^ initial viewport
-                           -> m (Dynamic t (Viewport r))
-zoomableViewportDyn' z0 v0 = zoomableViewportDyn z0 v0 . fromWheelEvents =<< getMouseWheelEvent
-
-
-fromWheelEvents :: (Reflex t, Fractional r) => Event t MouseWheelEventData -> Event t r
-fromWheelEvents = fmap f
-  where
-    f evt = let V2 _ delta = fromIntegral <$> mouseWheelEventPos evt
-            in delta / maxScrollSpeed
-
-
--- | maximum scroll speed
-maxScrollSpeed :: Num r => r
-maxScrollSpeed = 10
 
 --------------------------------------------------------------------------------
 -- * Pannable viewport

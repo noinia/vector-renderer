@@ -67,8 +67,8 @@ library
     VectorRenderer.ReflexSDLRenderer
 
     GeomViewer.Viewport
-    GeomViewer.PannableViewport
-    GeomViewer.PannableViewport.SDL
+    GeomViewer.Viewport.Dynamic
+    GeomViewer.Viewport.Dynamic.SDL
 
 
     SDL.Util
