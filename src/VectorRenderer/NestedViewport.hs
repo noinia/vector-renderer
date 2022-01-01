@@ -21,8 +21,8 @@ import SDL.GeometryUtil
 import SDL.Util
 import System.Random
 import UI.Layout
-import UI.Viewport
-import VectorRenderer.PannableViewport
+import GeomViewer.Viewport
+import GeomViewer.Viewport.Dynamic.SDL
 import VectorRenderer.ReflexSDLRenderer
 import VectorRenderer.RenderCanvas
 
@@ -39,19 +39,31 @@ randomPoint = (\x y -> ext . fmap realToFrac $ Point2 x y)
 
 ----------------------------------------
 myLayout :: Layout R (IpeColor R)
-myLayout = Rows red [ Padding 15
-                    , Spacing 10
+myLayout = Rows red [ Spacing 0, Padding 0
                     ]
-                    [ Child 1 (Full blue [])
-                    , Child 1 (Full green [])
-                    , Child 2 (Columns yellow [ Spacing 20
-                                              , Padding 2
-                                              ]
-                                [ Child 1 (Full seagreen [])
-                                , Child 1 (Full orange   [])
-                                ])
+                    [ Child 1  menuBar
+                    , Child 24 mainWindow
                     ]
+  where
+    menuBar     = Full blue []
+    mainWindow  = Columns yellow [ Spacing 0, Padding 0]
+                                 [ Child 1  toolDrawer
+                                 , Child 15 geomView
+                                 , Child 7  editPane
+                                 ]
 
+
+    toolDrawer  = Full blue []
+    geomView     = Full white []
+    editPane     = Rows white [] [ Child 10 editStuff
+                                 , Child 2  navToolsAndStatus
+                                 ]
+    editStuff = Full yellow []
+    navToolsAndStatus = Columns green [] [ Child 3 miniMap
+                                         , Child 3 status
+                                         ]
+    miniMap = Full orange []
+    status = Full red []
 
 
 
@@ -86,8 +98,8 @@ reflexMain = do
                -- performEvent_ $ ffor (updated dz) $ \z ->
                --   liftIO $ print z
 
-               -- dViewport <- pannableViewportDyn myViewport
-               dViewport <- zoomableViewportDyn def myViewport
+               dViewport <- pannableZoomableViewportDyn def myViewport
+               -- dViewport <- zoomableViewportDyn' def myViewport
 
 
                let drawStuff = do
@@ -97,7 +109,7 @@ reflexMain = do
 
                drawLayer $ flip drawInViewport drawStuff <$> dViewport
 
-               let screen = box (ext $ Point2 600 200) (ext $ Point2 1000 800)
+               let screen = box (ext $ Point2 0 0) (ext $ Point2 1440 810)
                drawLayer . pure $ renderLayout' screen myLayout
 
 
@@ -134,14 +146,13 @@ drawInViewport viewport act = do drawViewport viewport
 --------------------------------------------------------------------------------
 
 main :: IO ()
-
 main = do
   initializeAll
   let ogl = defaultOpenGL{ glProfile = Core Debug 3 3 }
       cfg = defaultWindow{ windowGraphicsContext = OpenGLContext ogl
                          , windowResizable       = True
                          -- , windowHighDPI         = False
-                         , windowInitialSize     = V2 1024 980
+                         , windowInitialSize     = V2 1440 810
                          }
   withWindow "convex hull" cfg $ \window -> do
     void $ glCreateContext window

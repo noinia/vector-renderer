@@ -14,7 +14,7 @@ import           Graphics.Rendering.Cairo.Canvas (Canvas)
 import           Reflex
 import qualified Reflex.SDL2 as Reflex
 import           Reflex.SDL2 hiding (Point, mult, vector)
-import           UI.Viewport
+import           GeomViewer.Viewport
 
 --------------------------------------------------------------------------------
 

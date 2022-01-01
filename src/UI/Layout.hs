@@ -15,6 +15,7 @@ import Data.Geometry.Point
 import Data.Geometry.Transformation
 import Data.Geometry.Vector
 import qualified Data.List as List
+import Data.Geometry (NumType, Dimension)
 
 --------------------------------------------------------------------------------
 
@@ -37,8 +38,6 @@ data VAlign = AlignTop
 --
 data Attribute r = Spacing r -- ^ spacing between children.
                  | Padding r -- ^ around the boundary of the objects
-                 | HAlign HAlign
-                 | VAlign VAlign
                  deriving (Show,Eq)
 makePrisms ''Attribute
 
@@ -53,7 +52,7 @@ data Child r a = Child { _relativeSize :: {-# UNPACK #-} !Size
                        } deriving (Show,Eq)
 
 -- | tiling based Layout
-data Layout r a = Full    a (Attributes r)
+data Layout r a = Full    a (Attributes r) -- HAlign VAlign
                 | Rows    a (Attributes r) [Child r a]
                 | Columns a (Attributes r) [Child r a]
                 deriving (Show,Eq)
@@ -144,11 +143,10 @@ renderLayout r render = traverse_ render . computeLayout (first (const ()) r)
 -- render r = alignContent
 --          . computeLayout (first (const ()) r)
 
-
 -- alignContent :: Layout r (Rectangle () r :+ g) -> Layout r (LayoutResult r :+ g) ->
 -- alignContent = \case
---   Full (r :+ g) _ats -> undefined
---   Rows (r :+ _)
+-- --   Full (r :+ g) _ats -> undefined
+-- --   Rows (r :+ _)
 
 --------------------------------------------------------------------------------
 -- * Computing the layout
@@ -251,13 +249,40 @@ assignFract f total c = f ((c^.relativeSize.to fromIntegral) / total) :+ c
 --------------------------------------------------------------------------------
 -- * Dealing with content
 
+-- | Aligns a geometry in the given target rectangle.
+alignIn         :: (IsTransformable g, IsBoxable g, Dimension g ~ 2
+                   , NumType g ~ r, Fractional r, Ord r)
+                => Rectangle p r -> HAlign -> VAlign -> g -> g :+ Rectangle () r
+alignIn r h v g = alignWithBBoxIn r h v (g :+ boundingBox g)
 
+-- | Given a target rectangle r, the alignments, and a geometry with
+-- its bounding box, transform the geometry (and its bounding box) to
+-- the set alignment within the target rectangle r.
+alignWithBBoxIn                :: (IsTransformable g, Dimension g ~ 2
+                                  , NumType g ~ r, Fractional r, Ord r
+                                  )
+                               => Rectangle p r -> HAlign -> VAlign
+                               -> g :+ Rectangle q r -> g :+ Rectangle q r
+alignWithBBoxIn r h v (g :+ b) = transformBy t g :+ transformBy t b
+  where
+    t = translation $ Vector2 x y
 
+    gbl = b^.to minPoint.core
+    gbr = b^.to maxPoint.core
+    gc  = r^.to centerPoint
 
+    rbl = r^.to minPoint.core
+    rbr = r^.to maxPoint.core
+    rc  = r^.to centerPoint
 
-
-
-
+    x = case h of
+          AlignLeft  -> rbl^.xCoord - gbl^.xCoord
+          HCenter    -> rc^.xCoord  - gc^.xCoord
+          AlignRight -> rbr^.xCoord - gbr^.xCoord
+    y = case v of
+          AlignTop    -> rbr^.yCoord - gbr^.yCoord
+          VCenter     -> rc^.yCoord  - gc^.yCoord
+          AlignBottom -> rbl^.yCoord - gbl^.yCoord
 
 --------------------------------------------------------------------------------
 
