@@ -66,6 +66,8 @@ library
     -- VectorRenderer.RenderUtil
     VectorRenderer.ReflexSDLRenderer
 
+    GeomViewer.Mode
+
     GeomViewer.Viewport
     GeomViewer.Viewport.Dynamic
     GeomViewer.Viewport.Dynamic.SDL
@@ -73,9 +75,11 @@ library
 
     SDL.Util
     SDL.GeometryUtil
+
     VectorRenderer.ConvexHull
     VectorRenderer.SubdivViewer
     VectorRenderer.NestedViewport
+    VectorRenderer.GeomViewer
 
     Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval
 
@@ -108,6 +112,8 @@ library
                     , cairo
                     , random
                     , witherable              >= 0.4
+                    , vinyl                   >= 0.13
+                    , containers              >= 0.5
 
 
 executable vector-renderer
