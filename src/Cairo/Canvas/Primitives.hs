@@ -96,7 +96,7 @@ polygon pg' = let pg = second realToFrac pg'
 
 polyLine    :: Real r => PolyLine 2 p r -> Canvas ()
 polyLine p' = let p = second realToFrac p'
-              in Canvas.shape Canvas.ShapeLines $ p^..points.traverse.core.toV2'
+              in Canvas.shape (Canvas.ShapeRegular False) $ p^..points.traverse.core.toV2'
 
 triangle                                         :: Real r => Triangle 2 p r -> Canvas ()
 triangle t' = let (Triangle p q r) = second realToFrac t' in
