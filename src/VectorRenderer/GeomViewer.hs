@@ -7,25 +7,30 @@ import           Control.Lens
 import           Control.Lens.Extras (is)
 import           Control.Monad (void)
 import           Control.Monad.Fix
-import           Data.Bifunctor
 import           Data.Default
 import           Data.Ext
 import           Data.Foldable
+import           Data.Geometry.Boundary
 import           Data.Geometry.Box
+import           Data.Geometry.Line (Line)
+import qualified Data.Geometry.Line as Line
 import           Data.Geometry.LineSegment
 import           Data.Geometry.Point
 import           Data.Geometry.PolyLine
 import qualified Data.Geometry.PolyLine as PolyLine
 import           Data.Geometry.Polygon
 import qualified Data.Geometry.Polygon as Polygon
+import           Data.Geometry.Properties
 import           Data.Geometry.Transformation
 import           Data.Geometry.Vector
-import           Data.Intersection
 import qualified Data.LSeq as LSeq
+import           Data.List.Util (minimum1By)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 import           Data.Maybe (maybeToList)
+import           Data.Ord (comparing)
 import           Data.RealNumber.Rational
+import           Data.Tuple
 import           Debug.Trace
 import           GeomViewer.Mode (ModeAction(..), PartialPolyLine(..), _PartialPolyLine, PartialPolygon(..), _MultiplePoints)
 import qualified GeomViewer.Mode as Mode
@@ -113,12 +118,104 @@ isClick     :: MouseButton -> (core :+ MouseButtonEventData) -> Bool
 isClick b e = e^.extra.to mouseButtonEventButton == b
            && e^.extra.to mouseButtonEventMotion == Released
 
--- filterClicks b = filter (\e -> e^.extra.to mouseButtonEventButton == b)
+
+
+--------------------------------------------------------------------------------
+-- move these instances into HGeometry
+
+class HasSquaredEuclideanDistance g where
+  -- | Given a point q and a geometry g, the squared Euclidean distance between q and g.
+  squaredEuclideanDistTo   :: (Num (NumType g), Arity (Dimension g))
+                           => Point (Dimension g) (NumType g) -> g -> NumType g
+  squaredEuclideanDistTo q = snd . pointClosestToWithDistance q
+
+  -- | Given q and g, computes the point p in g closest to q according
+  -- to the Squared Euclidean distance.
+  pointClosestTo   :: (Num (NumType g), Arity (Dimension g))
+                   => Point (Dimension g) (NumType g) -> g
+                   -> Point (Dimension g) (NumType g)
+  pointClosestTo q = fst . pointClosestToWithDistance q
+
+  -- | Given q and g, computes the point p in g closest to q according
+  -- to the Squared Euclidean distance. Returns both the point and the
+  -- distance realized by this point.
+  pointClosestToWithDistance     :: (Num (NumType g), Arity (Dimension g))
+                                 => Point (Dimension g) (NumType g) -> g
+                                 -> (Point (Dimension g) (NumType g), NumType g)
+  pointClosestToWithDistance q g = let p = pointClosestTo q g
+                                   in (p, squaredEuclideanDist p q)
+  {-# MINIMAL pointClosestToWithDistance | pointClosestTo #-}
+
+instance (Num r, Arity d) => HasSquaredEuclideanDistance (Point d r) where
+  pointClosestTo _ p = p
+
+instance (Fractional r, Arity d) => HasSquaredEuclideanDistance (Line d r) where
+  pointClosestTo = Line.pointClosestTo
+
+instance (Num r, Ord r) => HasSquaredEuclideanDistance (Box 2 p r) where
+  pointClosestToWithDistance q bx =
+      case ((q^.xCoord) `inRange` hor, (q^.yCoord) `inRange` ver) of
+                      (False,False) -> if q^.yCoord < b
+                                       then closest (Point2 l b) (Point2 r b)
+                                       else closest (Point2 l t) (Point2 r t)
+                      (True, False) -> if q^.yCoord < b
+                                       then (q&yCoord .~ b, sq $ q^.yCoord - b)
+                                       else (q&yCoord .~ t, sq $ q^.yCoord - t)
+                      (False, True) -> if q^.xCoord < l
+                                       then (q&yCoord .~ l, sq $ q^.xCoord - l)
+                                       else (q&yCoord .~ r, sq $ q^.xCoord - r)
+                      (True, True)  -> (q, 0) -- point lies inside the box
+    where
+      Vector2 hor@(Range' l r) ver@(Range' b t) = extent bx
+      sq x = x*x
+      closest p1 p2 = let d1 = squaredEuclideanDist q p1
+                          d2 = squaredEuclideanDist q p2
+                      in if d1 < d2 then (p1, d1) else (p2, d2)
+
+instance (Fractional r, Arity d, Ord r) => HasSquaredEuclideanDistance (LineSegment d p r) where
+  pointClosestToWithDistance q = swap . sqDistanceToSegArg q
+
+instance (Fractional r, Arity d, Ord r) => HasSquaredEuclideanDistance (PolyLine d p r) where
+  pointClosestToWithDistance q = minimumBy (comparing snd)
+                               . fmap (pointClosestToWithDistance q)
+                               . edgeSegments
+
+instance (Fractional r, Ord r) => HasSquaredEuclideanDistance (Polygon t p r) where
+  pointClosestToWithDistance q pg
+    | q `intersects` pg = (q, 0)
+    | otherwise         = pointClosestToWithDistance q (Boundary pg)
+
+instance (Fractional r, Ord r) => HasSquaredEuclideanDistance (Boundary (Polygon t p r)) where
+  pointClosestToWithDistance q = minimumBy (comparing snd)
+                               . fmap (pointClosestToWithDistance q)
+                               . listEdges . review _Boundary
+
+
+--------------------------------------------------------------------------------
+
+
+type Selection r = Point 2 r
+
+
+dSelected            :: ( Reflex t, MonadHold t m, MonadFix m, Ord r, Num r
+                        , HasSquaredEuclideanDistance s, NumType s ~ r, Dimension s ~ 2
+                        )
+                     => Dynamic t [s]
+                     -> Event t (Selection r)
+                     -> m (Dynamic t (Maybe s))
+dSelected candidates = foldDyn f Nothing . attach (current candidates)
+  where
+    f (currentCandidates, q) _ = closestTo q currentCandidates
+    closestTo q = minimum1By (comparing $ squaredEuclideanDistTo q)
+
+-- selectMode
+-- selectMode leftClicks geoms =
+
+
+--------------------------------------------------------------------------------
 
 data ContinueOrFinish a = Continue a | Finish a
                         deriving (Show,Eq)
-
---------------------------------------------------------------------------------
 
 type PolyLineModeState r = Maybe (PartialPolyLine r)
 
