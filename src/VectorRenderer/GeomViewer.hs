@@ -193,9 +193,10 @@ instance (Fractional r, Ord r) => HasSquaredEuclideanDistance (Boundary (Polygon
 
 --------------------------------------------------------------------------------
 
+type SelectModeState r = Maybe (Point 2 r)
+  -- todo generalize
 
-type Selection r = Point 2 r
-
+type Selection r  = Point 2 r
 
 dSelected            :: ( Reflex t, MonadHold t m, MonadFix m, Ord r, Num r
                         , HasSquaredEuclideanDistance s, NumType s ~ r, Dimension s ~ 2
@@ -208,9 +209,16 @@ dSelected candidates = foldDyn f Nothing . attach (current candidates)
     f (currentCandidates, q) _ = closestTo q currentCandidates
     closestTo q = minimum1By (comparing $ squaredEuclideanDistTo q)
 
--- selectMode
--- selectMode leftClicks geoms =
 
+selectMode :: ( Reflex t, MonadHold t m, MonadFix m, Ord r, Num r
+                        , HasSquaredEuclideanDistance s, NumType s ~ r, Dimension s ~ 2
+                        )
+                     => Dynamic t [s]
+                     -> Event t (Selection r)
+                     -> Dynamic t (Mode.Mode s' r)
+                     -> m (Dynamic t (Maybe s))
+selectMode candidates leftClicks dMode =
+  dSelected candidates $ gate (is Mode._SelectMode <$> current dMode) leftClicks
 
 --------------------------------------------------------------------------------
 
@@ -342,6 +350,14 @@ reflexMain = do
                let dPolygons       = snd <$> dPolygonModeState
                    dCurrentPolygon = fst <$> dPolygonModeState
 
+
+               ----------------------------------------
+               -- * Selection
+               dSelection <- selectMode (fmap (view core) <$> dPoints)
+                                        (view core <$> leftViewportClicks)
+                                        dMode
+
+               performEvent_ $ ffor (updated dSelection ) (liftIO . print)
 
                ----------------------------------------
                -- * Draw Everything in the Viewport
