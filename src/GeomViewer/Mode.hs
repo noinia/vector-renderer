@@ -42,6 +42,18 @@ makePrisms ''Mode
 instance Default (Mode s r) where
   def = SelectMode Nothing
 
+
+----------------------------------------
+
+newtype ModeAction s r = UpdateMode (Mode s r)
+                       deriving (Show,Eq)
+
+
+
+
+
+
+
 --------------------------------------------------------------------------------
 
 data GeomUniverse = SPoint
@@ -73,6 +85,9 @@ makeLenses ''GeometryCollection
 
 instance (Semigroup (Rec (Attr f r) gs)) => Semigroup (GeometryCollection f gs r) where
   (GeometryCollection a) <> (GeometryCollection b) = GeometryCollection $ a <> b
+
+instance (Monoid (Rec (Attr f r) gs)) => Monoid (GeometryCollection f gs r) where
+  mempty = (GeometryCollection mempty)
 
 
 deriving instance (RMap gs, ReifyConstraint Show (Attr f r) gs, RecordToList gs)

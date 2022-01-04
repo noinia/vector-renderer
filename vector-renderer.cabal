@@ -80,6 +80,7 @@ library
     VectorRenderer.SubdivViewer
     VectorRenderer.NestedViewport
     VectorRenderer.GeomViewer
+    VectorRenderer.Button
 
     Algorithms.Geometry.HiddenSurfaceRemoval.HiddenSurfaceRemoval
 

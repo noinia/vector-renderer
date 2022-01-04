@@ -16,51 +16,10 @@ import           Reflex
 import           Reflex.SDL2 hiding (point, Rectangle, Point)
 import           SDL.GeometryUtil
 import           SDL.Util
+import           VectorRenderer.Button
 import           VectorRenderer.ReflexSDLRenderer
 import           VectorRenderer.RenderCanvas
 --------------------------------------------------------------------------------
-
-data ButtonState = ButtonStateUp
-                 | ButtonStateOver
-                 | ButtonStateDown
-                 deriving Eq
-
-
-buttonState :: Bool -> Bool -> ButtonState
-buttonState isInside isDown
-  | not isInside = ButtonStateUp
-  | isDown       = ButtonStateDown
-  | otherwise    = ButtonStateOver
-
-
-button :: (ReflexSDL2Renderer t m r, RealFrac r)
-       => m (Event t ButtonState)
-button = do
-           let (rect :: Rectangle () Int) = box (ext $ Point2 0 0) (ext $ Point2 200 100)
-           dMousePos <- mousePositionDyn @Int
-
-           dMouseIsInside <- holdDyn False ((\case
-                                               Nothing -> False
-                                               Just (p :+ _) -> p `intersects` rect
-                                            ) <$> updated dMousePos)
-
-           evBtn <- mouseClickEvent
-           let evBtnIsDown = ffor evBtn $ (== Pressed) . mouseButtonEventMotion . _extra
-           dButtonIsDown <- holdDyn False evBtnIsDown
-
-           let dButtonStatePre = buttonState <$> dMouseIsInside <*> dButtonIsDown
-           evPB         <- getPostBuild
-           dButtonState <- holdDyn ButtonStateUp $ leftmost [ updated dButtonStatePre
-                                                            , ButtonStateUp <$ evPB
-                                                            ]
-           drawLayer $ ffor dButtonState $ \st ->
-             let color = case st of
-                           ButtonStateUp   -> V4 192 192 192 255
-                           ButtonStateOver -> 255
-                           ButtonStateDown -> V4 128 128 128 255
-             in withFill color $ rectangle rect
-
-           updated <$> holdUniqDyn dButtonState
 
 --------------------------------------------------------------------------------
 
@@ -71,7 +30,8 @@ reflexMain = do
                -- ------------------------------------------------------------------------------
                -- -- A button!
                -- ------------------------------------------------------------------------------
-               evBtnState <- button
+               let rect = box (ext $ Point2 0 0) (ext $ Point2 200 100)
+               evBtnState <- button rect "button"
                let evBtnPressed = fmapMaybe (guard . (== ButtonStateDown)) evBtnState
                performEvent_ $ ffor evBtnPressed $ const $ liftIO $ putStrLn "Button pressed!"
 
