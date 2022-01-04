@@ -73,17 +73,17 @@ myViewport = mkViewport (box (ext $ Point2 100 10) (ext $ Point2 1240 810))
 
 
 mkMode :: forall s r m t. (Reflex t, MonadHold t m, MonadFix m)
-       => Mode.Mode s r -> Event t (ModeAction s r) -> m (Dynamic t (Mode.Mode s r))
+       => Mode.Mode -> Event t ModeAction -> m (Dynamic t Mode.Mode)
 mkMode = foldDyn (\(UpdateMode m) _ -> m)
 
 
 buttons :: (ReflexSDL2Renderer t m r, RealFrac r)
-        => m (Map String (Event t (ButtonState, Mode.Mode s r)))
+        => m (Map String (Event t (ButtonState, Mode.Mode)))
 buttons = sequence
-        $ Map.fromList [ mkButton "select"   (Point2 10 700) $ Mode.SelectMode   Nothing
+        $ Map.fromList [ mkButton "select"   (Point2 10 700) $ Mode.SelectMode
                        , mkButton "point"    (Point2 10 600) $ Mode.PointMode
-                       , mkButton "polyline" (Point2 10 500) $ Mode.PolyLineMode Nothing
-                       , mkButton "polygon"  (Point2 10 400) $ Mode.PolygonMode  Nothing
+                       , mkButton "polyline" (Point2 10 500) $ Mode.PolyLineMode
+                       , mkButton "polygon"  (Point2 10 400) $ Mode.PolygonMode
                        ]
   where
     mkButton l p x = (l, fmap (,x) <$> button (box (ext p) (ext $ p .+^ size')) l)
@@ -215,7 +215,7 @@ selectMode :: ( Reflex t, MonadHold t m, MonadFix m, Ord r, Num r
                         )
                      => Dynamic t [s]
                      -> Event t (Selection r)
-                     -> Dynamic t (Mode.Mode s' r)
+                     -> Dynamic t Mode.Mode
                      -> m (Dynamic t (Maybe s))
 selectMode candidates leftClicks dMode =
   dSelected candidates $ gate (is Mode._SelectMode <$> current dMode) leftClicks
@@ -232,7 +232,7 @@ type PolyLineModeState r = Maybe (PartialPolyLine r)
 polyLineMode                             :: (Reflex t, MonadHold t m, MonadFix m, Show r)
                                          => Event t (Point 2 r)
                                          -> Event t (Point 2 r)
-                                         -> Dynamic t (Mode.Mode s r)
+                                         -> Dynamic t Mode.Mode
                                          -> m (Dynamic t (PolyLineModeState r, [PolyLine 2 () r]))
 polyLineMode leftClicks rightClicks dMode = foldDyn f (Nothing, []) evts
   where
@@ -260,7 +260,7 @@ type PolygonModeState r = Maybe (PartialPolygon r)
 polygonMode                              :: (Reflex t, MonadHold t m, MonadFix m, Ord r, Fractional r)
                                          => Event t (Point 2 r)
                                          -> Event t (Point 2 r)
-                                         -> Dynamic t (Mode.Mode s r)
+                                         -> Dynamic t Mode.Mode
                                          -> m (Dynamic t (PolygonModeState r, [SimplePolygon () r]))
 polygonMode leftClicks rightClicks dMode = foldDyn f (Nothing, []) evts
   where
@@ -305,7 +305,7 @@ reflexMain = do
                    modeEvents = leftmost . Map.elems . ffor buttonsE $
                                   \events -> mapMaybe (\(s,m') -> onUp (UpdateMode m') s) events
 
-               dMode <- mkMode @() def modeEvents
+               dMode <- mkMode @() Mode.SelectMode modeEvents
                performEvent_ $ ffor (updated dMode) (liftIO . print)
 
                mouseClicks <- mouseClickEvent
